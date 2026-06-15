@@ -47,3 +47,25 @@ button {
     font-size: 0.9em;
     margin-bottom: 20px;
 }
+
+/* HACKER BACKGROUND (add at the end) */
+body {
+  background: #030308;
+  color: var(--text);
+  position: relative;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: url('https://images.pexels.com/photos/5380642/pexels-photo-5380642.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&dpr=2') center/cover no-repeat fixed;
+  filter: brightness(0.25) contrast(1.2);
+  z-index: -2;
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 20% 30%, rgba(0,0,0,0.7), rgba(0,0,0,0.9));
+  z-index: -1;
+}

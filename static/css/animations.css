@@ -1,0 +1,16 @@
+/* TOAST CONTAINER */
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+/* Additional glitch effect (already used) */
+.glitch-text {
+  animation: glitchText 1.8s infinite;
+}

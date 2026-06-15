@@ -1,24 +1,68 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Can You Find the Flaw?</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-</head>
-<body>
-    <div class="counter" id="counter">🔍 Loading...</div>
-    <h1>Can You Find the Flaw?</h1>
-    <p>Four stages. Each requires discovering a hidden vulnerability. Use the request builders below.</p>
+{% include 'header.html' %}
 
-    <div id="stages"></div>
+<!-- FULL-SCREEN WELCOME OVERLAY (hidden initially) -->
+<div id="welcomeOverlay" class="welcome-overlay" style="display: none;">
+  <div class="welcome-content">
+    <div class="welcome-glitch" id="welcomeText">WELCOME TO THE ARENA,</div>
+    <div class="welcome-callsign" id="welcomeCallsign"></div>
+    <div class="welcome-goodluck">GOOD LUCK!</div>
+  </div>
+</div>
 
-    <div id="prize-section">
-        <h2>Claim Prize</h2>
-        <button id="claimBtn">Claim Prize (after solving all stages)</button>
-        <div id="prizeResponse"></div>
+<!-- AUTHENTICATION MODAL (shown first) -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal-card">
+    <div class="modal-eyebrow">// AUTHENTICATION REQUIRED</div>
+    <h2>IDENTIFY<br>YOURSELF</h2>
+    <p>This CTF challenge is reserved for professionals. Enter your callsign to begin. Your time starts once you proceed.</p>
+    <div class="input-group">
+      <label>CALLSIGN / HANDLE</label>
+      <div class="input-icon">
+        <span>$</span>
+        <input type="text" id="callsignInput" placeholder="e.g. voidstar, 0x1337, nullbyte" maxlength="30" autocomplete="off" spellcheck="false">
+      </div>
     </div>
+    <button class="btn-primary" id="enterArenaBtn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      ENTER THE ARENA
+    </button>
+    <div class="modal-footer">// Your session is anonymous. No personal data is collected.</div>
+  </div>
+</div>
 
-    <script src="/static/js/main.js"></script>
-</body>
-</html>
+
+<!-- MAIN GAME UI (hidden until authentication + animation) -->
+<div class="game-container" id="gameContainer" style="display: none;">
+  <header class="game-header">
+    <div class="logo">CYPHER<span>//</span>CTF</div>
+    <div class="header-right">
+      <div class="callsign-badge" id="callsignBadge">
+        <strong id="callsignDisplay">—</strong>
+      </div>
+      <div class="timer-badge" id="timerBadge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span id="timerValue">00:00:00</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="game-main">
+    <div class="stage-section">
+      <div class="section-title">CHALLENGE STAGES</div>
+      <div id="stages"></div>   <!-- dynamic stages injected here -->
+    </div>
+    <div class="leaderboard-placeholder">
+      <div class="lb-header">🏆 LIVE LEADERBOARD</div>
+      <div id="counter" class="lb-entries">🔍 Loading solvers...</div>
+      <button id="claimBtn" class="btn-prize" style="margin-top: 2rem; width: 100%;">🏆 CLAIM PRIZE</button>
+      <div id="prizeResponse" style="margin-top: 1rem;"></div>
+    </div>
+  </main>
+
+  <footer class="game-footer">
+    <div class="footer-left">// CAN YOU FIND THE FLAW — Ethical CTF playground</div>
+    <div class="footer-right">◆ ACTIVE SESSION</div>
+  </footer>
+</div>
+
+{% include 'footer.html' %}

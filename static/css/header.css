@@ -1,0 +1,55 @@
+/* GAME HEADER & TIMER */
+.game-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.game-container.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2rem;
+  height: 70px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(229,90,28,0.4);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header-right {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+.callsign-badge {
+  font-family: var(--mono);
+  background: rgba(0,0,0,0.6);
+  padding: 5px 14px;
+  border-radius: 40px;
+  border: 1px solid var(--border-glow);
+  font-size: 0.75rem;
+}
+.callsign-badge strong {
+  color: var(--orange);
+}
+.timer-badge {
+  font-family: var(--mono);
+  background: rgba(0,0,0,0.5);
+  padding: 5px 12px;
+  border-radius: 40px;
+  font-size: 0.7rem;
+  display: flex;
+  gap: 6px;
+  color: #ccc;
+}
+.timer-badge svg {
+  stroke: var(--orange);
+}

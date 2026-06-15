@@ -1,0 +1,24 @@
+/* ========== GAME FOOTER ========== */
+.game-footer {
+  border-top: 1px solid rgba(229,90,28,0.4);
+  padding: 1.2rem 2rem;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(12px);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+}
+.footer-left, .footer-right {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: #aaa;
+}
+.footer-right {
+  color: #28c840;
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
