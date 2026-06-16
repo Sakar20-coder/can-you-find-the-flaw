@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, session
 from database import increment_winner_count, get_total_winners
+import uuid
 
 prize_bp = Blueprint('prize', __name__)
 
@@ -12,8 +13,14 @@ def claim_prize():
             return jsonify({'error': 'Prize already claimed'}), 400
         session['claimed'] = True
         session.modified = True
-        total = increment_winner_count(session.sid)
-        prize_token = f"PRIZE-{session.sid[:8]}-{total}"
+
+        # Generate a unique session ID if not already present
+        if '_id' not in session:
+            session['_id'] = str(uuid.uuid4())
+        session_id = session['_id']
+
+        total = increment_winner_count(session_id)
+        prize_token = f"PRIZE-{session_id[:8]}-{total}"
         return jsonify({
             'success': True,
             'message': 'You found all flaws! Show this QR code to claim your prize.',

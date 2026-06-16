@@ -153,7 +153,7 @@ function createStageCard(stage, unlocked) {
         <div class="rb-row">
           <select id="method${stage}">
             <option>${defaultMethods[stage]}</option>
-            ${stage === 2 ? '<option>POST</option>' : ''}
+            ${stage === 2 || stage === 3 ? '<option>POST</option>' : ''}
           </select>
           <input type="text" id="url${stage}" value="${defaultUrls[stage]}" size="50">
         </div>

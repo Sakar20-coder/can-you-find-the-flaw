@@ -8,12 +8,13 @@ stage1_bp = Blueprint('stage1', __name__)
 @stage1_bp.route('/stage1/forgot', methods=['POST'])
 def forgot_password():
     data = request.get_json()
-    if not data or 'username' not in data:
-        return jsonify({'error': 'Missing username'}), 400
+    if not data:
+        return jsonify({'error': 'Missing JSON'}), 400
+    username = data.get('username') or data.get('email')
+    if not username:
+        return jsonify({'error': 'Missing username or email'}), 400
 
-    username = data['username']
-    if username == 'admin':
-        # Vulnerable: accepts 'none' algorithm
+    if 'admin' in username.lower():
         token = jwt.encode(
             {'user': 'admin', 'exp': time.time() + 300, 'reset_allowed': False},
             key=None,
@@ -29,7 +30,7 @@ def reset_password():
     if not token:
         return jsonify({'error': 'Missing token'}), 401
     try:
-        # No signature verification – accepts forged tokens
+        # Vulnerable: accepts none algorithm without signature verification
         payload = jwt.decode(token, options={'verify_signature': False})
         if payload.get('user') == 'admin' and payload.get('reset_allowed') == True:
             mark_solved(1)
@@ -40,5 +41,5 @@ def reset_password():
             })
         else:
             return jsonify({'error': 'Invalid token'}), 403
-    except:
-        return jsonify({'error': 'Malformed token'}), 400
+    except Exception as e:
+        return jsonify({'error': f'Malformed token: {str(e)}'}), 400

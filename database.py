@@ -23,6 +23,15 @@ def init_db():
                 total INTEGER DEFAULT 0
             )
         ''')
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS player_progress (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                callsign TEXT UNIQUE,
+                stages_solved INTEGER DEFAULT 0,
+                elapsed_seconds INTEGER DEFAULT 0,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
         conn.execute('INSERT OR IGNORE INTO global_counter (id, total) VALUES (1, 0)')
         conn.commit()
 
@@ -40,53 +49,27 @@ def get_total_winners():
     with get_db() as conn:
         row = conn.execute('SELECT total FROM global_counter WHERE id = 1').fetchone()
         return row['total'] if row else 0
-    # Add this inside your init_db() function (after the existing tables)
-def init_db():
-    with get_db() as conn:
-        # ... your existing winners and global_counter tables ...
-        
-        # NEW: players table for leaderboard
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS players (
-                callsign TEXT PRIMARY KEY,
-                solved_stages TEXT,
-                solved_count INTEGER DEFAULT 0,
-                elapsed_seconds INTEGER DEFAULT 0
-            )
-        ''')
-        # ... rest of your init_db() (commit etc.)
 
-# Add these new functions at the end of the file
-
-def update_player_progress(callsign, solved_stages, elapsed_seconds):
-    """Store or update a player's progress for leaderboard."""
-    with get_db() as conn:
-        solved_count = len(solved_stages)
-        existing = conn.execute('SELECT 1 FROM players WHERE callsign = ?', (callsign,)).fetchone()
-        if existing:
-            conn.execute('''
-                UPDATE players
-                SET solved_stages = ?, solved_count = ?, elapsed_seconds = ?
-                WHERE callsign = ?
-            ''', (','.join(map(str, solved_stages)), solved_count, elapsed_seconds, callsign))
-        else:
-            conn.execute('''
-                INSERT INTO players (callsign, solved_stages, solved_count, elapsed_seconds)
-                VALUES (?, ?, ?, ?)
-            ''', (callsign, ','.join(map(str, solved_stages)), solved_count, elapsed_seconds))
-        conn.commit()
-
-def get_leaderboard(limit=50):
-    """Return top players sorted by solved_count DESC, then elapsed_seconds ASC."""
+def get_leaderboard():
     with get_db() as conn:
         rows = conn.execute('''
-            SELECT callsign, solved_count, elapsed_seconds
-            FROM players
-            WHERE solved_count > 0
-            ORDER BY solved_count DESC, elapsed_seconds ASC
-            LIMIT ?
-        ''', (limit,)).fetchall()
-        return [{'callsign': r['callsign'], 'solved_count': r['solved_count'], 'elapsed_seconds': r['elapsed_seconds']} for r in rows]
+            SELECT callsign, stages_solved, elapsed_seconds, updated_at
+            FROM player_progress
+            ORDER BY stages_solved DESC, elapsed_seconds ASC
+            LIMIT 20
+        ''').fetchall()
+        return [dict(row) for row in rows]
+
+def update_player_progress(callsign, solved, elapsed_seconds):
+    with get_db() as conn:
+        conn.execute('''
+            INSERT INTO player_progress (callsign, stages_solved, elapsed_seconds)
+            VALUES (?, ?, ?)
+            ON CONFLICT(callsign) DO UPDATE SET
+                stages_solved = excluded.stages_solved,
+                elapsed_seconds = excluded.elapsed_seconds,
+                updated_at = CURRENT_TIMESTAMP
+        ''', (callsign, len(solved), elapsed_seconds))
+        conn.commit()
 
 init_db()
-

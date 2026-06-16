@@ -8,7 +8,6 @@ stage4_bp = Blueprint('stage4', __name__)
 UPLOAD_DIR = '/tmp/avatars'
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# Create flag file for XXE to read
 FLAG_PATH = os.path.join(os.path.dirname(__file__), '..', 'instance', 'flag.txt')
 if not os.path.exists(FLAG_PATH):
     with open(FLAG_PATH, 'w') as f:
@@ -26,15 +25,19 @@ def upload_avatar():
     file.save(filepath)
 
     try:
-        tree = etree.parse(filepath)
+        # Force DTD loading and external entity resolution
+        parser = etree.XMLParser(load_dtd=True, resolve_entities=True, no_network=False)
+        tree = etree.parse(filepath, parser)
         root = tree.getroot()
         svg_str = etree.tostring(root, pretty_print=True).decode()
-        # Check if the flag file content appears in parsed SVG
+        
         with open(FLAG_PATH, 'r') as f:
             real_flag = f.read().strip()
+        
         if real_flag in svg_str:
             mark_solved(4)
             return jsonify({'solved': True, 'flag': real_flag, 'next_stage': None})
+        
         return jsonify({'message': 'Avatar uploaded', 'svg': svg_str})
     except Exception as e:
         return jsonify({'error': f'Invalid SVG: {str(e)}'}), 400
