@@ -1,11 +1,12 @@
-// ======================== MAIN.JS – FULL CTF CLIENT (with welcome overlay) ========================
+// ======================== MAIN.JS – FULL CTF CLIENT (polling version) ========================
 let solvedStages = [];
-
-// ----- Leaderboard pagination variables (new) -----
 let lbPage = 0;
 const LB_PER_PAGE = 8;
+let startTime = parseInt(localStorage.getItem('ctf_startTime') || '0');
+let timerInterval = null;
+let callsign = '';
 
-// ----- Helper: Toast messages -----
+// ----- Toast -----
 function showToast(message, type = 'info') {
   const container = document.getElementById('toastContainer');
   if (!container) return;
@@ -32,7 +33,7 @@ function showToast(message, type = 'info') {
   }, 3800);
 }
 
-// ----- Speech: Welcome to the arena -----
+// ----- Speech -----
 function speakWelcome(name) {
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
@@ -44,27 +45,26 @@ function speakWelcome(name) {
   setTimeout(() => window.speechSynthesis.speak(utterance), 50);
 }
 
-// ----- Timer (localStorage) -----
-let startTime = parseInt(localStorage.getItem('ctf_startTime') || '0');
-let timerInterval = null;
+// ----- Timer (server‑side) -----
+function updateServerTimer() {
+  fetch('/api/session_status', { credentials: 'include' })
+    .then(res => res.json())
+    .then(data => {
+      if (data.elapsed !== undefined) {
+        const hrs = String(Math.floor(data.elapsed / 3600)).padStart(2,'0');
+        const mins = String(Math.floor((data.elapsed % 3600) / 60)).padStart(2,'0');
+        const secs = String(data.elapsed % 60).padStart(2,'0');
+        const timerSpan = document.getElementById('timerValue');
+        if (timerSpan) timerSpan.innerText = `${hrs}:${mins}:${secs}`;
+      }
+    })
+    .catch(() => {});
+}
 
 function startGlobalTimer() {
   if (timerInterval) clearInterval(timerInterval);
-  if (!startTime) {
-    startTime = Date.now();
-    localStorage.setItem('ctf_startTime', startTime);
-  }
-  updateTimerDisplay();
-  timerInterval = setInterval(updateTimerDisplay, 1000);
-}
-
-function updateTimerDisplay() {
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
-  const hours = String(Math.floor(elapsed / 3600)).padStart(2, '0');
-  const minutes = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
-  const seconds = String(elapsed % 60).padStart(2, '0');
-  const timerSpan = document.getElementById('timerValue');
-  if (timerSpan) timerSpan.innerText = `${hours}:${minutes}:${seconds}`;
+  updateServerTimer();
+  timerInterval = setInterval(updateServerTimer, 2000);
 }
 
 // ----- Backend API calls -----
@@ -74,6 +74,8 @@ async function fetchCounter() {
     const data = await res.json();
     const counterEl = document.getElementById('counter');
     if (counterEl) counterEl.innerText = `🔍 ${data.total} people have found the flaw so far`;
+    const statSolvers = document.getElementById('stat-solvers');
+    if (statSolvers) statSolvers.innerText = data.total;
   } catch (err) {
     console.error('Counter fetch failed', err);
   }
@@ -84,8 +86,9 @@ async function checkSolved() {
     const res = await fetch('/api/check_solved', { credentials: 'include' });
     const data = await res.json();
     solvedStages = data.solved || [];
+    callsign = data.callsign || '';
     renderStages();
-    // NEW: after we know the solved stages, send progress to backend for leaderboard
+    updateProgress();
     updatePlayerProgress();
   } catch (err) {
     console.error('Check solved failed', err);
@@ -194,7 +197,6 @@ window.sendRequest = async function(stage) {
   let fetchOptions = { method, headers, credentials: 'include' };
   if (method !== 'GET' && bodyText.trim()) fetchOptions.body = bodyText;
 
-  // For stage 4 file upload, show a helpful message
   if (stage === 4 && method === 'POST' && url.includes('upload')) {
     document.getElementById(`response${stage}`).innerHTML = `<span class="err">File uploads require curl or similar. Example: curl -F "file=@payload.svg" ${url}</span>`;
     return;
@@ -206,8 +208,8 @@ window.sendRequest = async function(stage) {
     const respEl = document.getElementById(`response${stage}`);
     respEl.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
     if (data.solved === true) {
-      showToast(`🎉 Flag found: ${data.flag}`, 'success');
-      await checkSolved();   // this will also trigger updatePlayerProgress and fetchLeaderboard
+      showToast(`�� Flag found: ${data.flag}`, 'success');
+      await checkSolved();
     }
     if (data.total_winners) {
       document.getElementById('counter').innerText = `🔍 ${data.total_winners} people have found the flaw so far`;
@@ -258,7 +260,9 @@ if (claimBtn) {
   });
 }
 
-// ======================== NEW LEADERBOARD (LIVE) ========================
+// ======================== LEADERBOARD (polling) ========================
+let leaderboardPollInterval = null;
+
 async function fetchLeaderboard() {
   try {
     const res = await fetch('/api/leaderboard');
@@ -294,7 +298,6 @@ function renderLeaderboard(players) {
       <td class="lb-time">${timeStr}</td>
     </tr>`;
   }).join('');
-  // Pagination controls
   const btnWrap = document.getElementById('lbPageBtns');
   if (totalPages <= 1) {
     btnWrap.innerHTML = '';
@@ -322,10 +325,7 @@ function escapeHtml(s) {
 }
 
 window.lbGo = function(p) {
-  const totalPlayers = 0; // we'll fetch fresh data; we can re-fetch leaderboard after page change
-  // Actually we need to know total pages from current data. Simplest: re-fetch and then set lbPage.
-  // But we can just re-fetch leaderboard and re-render with new page.
-  lbPage = Math.max(0, Math.min(p, 100)); // temporary, will be recalculated on render
+  lbPage = Math.max(0, Math.min(p, 100));
   fetchLeaderboard();
 };
 
@@ -339,21 +339,18 @@ async function updatePlayerProgress() {
       credentials: 'include',
       body: JSON.stringify({ solved: solvedStages, elapsed_seconds: elapsedSec })
     });
-    // Refresh leaderboard after update
     fetchLeaderboard();
   } catch(e) {
     console.error('Progress update failed', e);
   }
 }
 
-// ======================== AUTHENTICATION FLOW ========================
+// ======================== AUTHENTICATION ========================
 const authModal = document.getElementById('authModal');
 const gameContainer = document.getElementById('gameContainer');
 const callsignInput = document.getElementById('callsignInput');
 const enterBtn = document.getElementById('enterArenaBtn');
 const callsignDisplaySpan = document.getElementById('callsignDisplay');
-
-let callsign = ''; // will be set during auth
 
 async function submitCallsignToBackend(callsign) {
   try {
@@ -387,7 +384,6 @@ async function authenticateAndEnter(rawCallsign) {
   if (callsignDisplaySpan) callsignDisplaySpan.innerText = sanitized;
   if (authModal) authModal.style.display = 'none';
 
-  // Show the full-screen welcome overlay
   const welcomeOverlay = document.getElementById('welcomeOverlay');
   const welcomeCallsignSpan = document.getElementById('welcomeCallsign');
   if (welcomeOverlay && welcomeCallsignSpan) {
@@ -398,13 +394,12 @@ async function authenticateAndEnter(rawCallsign) {
   speakWelcome(sanitized);
   showToast(`Access granted, ${sanitized}. Entering arena...`, 'success');
 
-  if (!startTime) {
-    startTime = Date.now();
-    localStorage.setItem('ctf_startTime', startTime);
-  }
   startGlobalTimer();
 
-  // Wait 2.5 seconds, then fade out overlay and show game container
+  // Poll leaderboard every 3 seconds
+  if (leaderboardPollInterval) clearInterval(leaderboardPollInterval);
+  leaderboardPollInterval = setInterval(fetchLeaderboard, 3000);
+
   setTimeout(() => {
     if (welcomeOverlay) {
       welcomeOverlay.style.opacity = '0';
@@ -422,8 +417,9 @@ async function authenticateAndEnter(rawCallsign) {
 
   await fetchCounter();
   await checkSolved();
-  // NEW: fetch leaderboard after login
   fetchLeaderboard();
+  // Create quit button after auth
+  setTimeout(createQuitButton, 500);
   return true;
 }
 
@@ -445,11 +441,13 @@ async function checkExistingSession() {
         gameContainer.classList.add('visible');
       }
       startGlobalTimer();
+      if (leaderboardPollInterval) clearInterval(leaderboardPollInterval);
+      leaderboardPollInterval = setInterval(fetchLeaderboard, 3000);
       await fetchCounter();
       await checkSolved();
       showToast(`Welcome back, ${data.callsign}.`, 'info');
-      // NEW: fetch leaderboard on session resume
       fetchLeaderboard();
+      setTimeout(createQuitButton, 500);
     } else {
       if (authModal) authModal.style.display = 'flex';
     }
@@ -458,7 +456,6 @@ async function checkExistingSession() {
   }
 }
 
-// Event listeners
 if (enterBtn) enterBtn.addEventListener('click', () => authenticateAndEnter(callsignInput.value));
 if (callsignInput) {
   callsignInput.addEventListener('keypress', (e) => {
@@ -466,12 +463,9 @@ if (callsignInput) {
   });
 }
 
-// Initialize
-document.addEventListener('DOMContentLoaded', checkExistingSession);
+// ======================== HOMEPAGE ENHANCEMENTS ========================
 
-// ===== NEW HOMEPAGE FUNCTIONS (append to main.js) =====
-
-// Update progress strip
+// Progress strip
 function updateProgress() {
   const solved = solvedStages || [];
   const pct = Math.round((solved.length / 4) * 100);
@@ -509,9 +503,42 @@ function setTheme(t) {
 }
 function getTheme() { return localStorage.getItem('ctf_theme') || 'dark'; }
 
-// Event listeners (these do not replace your existing ones)
+// Quit button
+function createQuitButton() {
+  const headerRight = document.querySelector('.header-right-inner');
+  if (!headerRight) return;
+  // Avoid duplicate
+  if (document.getElementById('quitBtn')) return;
+  const quitBtn = document.createElement('button');
+  quitBtn.id = 'quitBtn';
+  quitBtn.className = 'btn-quit';
+  quitBtn.textContent = '🚪 QUIT';
+  quitBtn.style.marginLeft = '12px';
+  quitBtn.style.background = '#e55a1c';
+  quitBtn.style.border = 'none';
+  quitBtn.style.color = 'white';
+  quitBtn.style.padding = '6px 14px';
+  quitBtn.style.borderRadius = '6px';
+  quitBtn.style.cursor = 'pointer';
+  quitBtn.style.fontFamily = "'JetBrains Mono', monospace";
+  quitBtn.style.fontSize = '0.7rem';
+  quitBtn.addEventListener('click', function() {
+    if (confirm('Are you sure you want to quit this session?')) {
+      fetch('/api/quit_session', { method: 'POST', credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'quit') {
+          window.location.href = data.redirect;
+        }
+      });
+    }
+  });
+  headerRight.appendChild(quitBtn);
+}
+
+// ----- DOM ready -----
 document.addEventListener('DOMContentLoaded', function() {
-  // Theme toggle
+  // Theme
   const themeBtn = document.getElementById('theme-btn');
   if (themeBtn) {
     themeBtn.addEventListener('click', function() {
@@ -520,7 +547,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   setTheme(getTheme());
 
-  // CTA button -> scroll to stages
+  // CTA scroll
   const startBtn = document.getElementById('start-btn');
   if (startBtn) {
     startBtn.addEventListener('click', function(e) {
@@ -530,7 +557,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Progress nodes -> scroll to stages
+  // Progress nodes scroll
   for (let i = 0; i < 4; i++) {
     const node = document.getElementById('ps-node-' + i);
     if (node) {
@@ -541,7 +568,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // Nav links -> smooth scroll
+  // Nav links smooth scroll
   document.querySelectorAll('.header-nav-inner .nav-link').forEach(link => {
     link.addEventListener('click', function(e) {
       e.preventDefault();
@@ -553,9 +580,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // If user already authenticated, update progress and leaderboard
-  if (typeof callsign !== 'undefined' && callsign) {
-    updateProgress();
-    if (typeof fetchLeaderboard === 'function') fetchLeaderboard();
-  }
+  // Check existing session
+  checkExistingSession();
 });

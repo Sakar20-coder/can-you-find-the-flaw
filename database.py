@@ -1,5 +1,7 @@
 import sqlite3
 import os
+from datetime import datetime
+import json
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'instance', 'ctf.db')
 
@@ -23,16 +25,24 @@ def init_db():
                 total INTEGER DEFAULT 0
             )
         ''')
+        conn.execute('INSERT OR IGNORE INTO global_counter (id, total) VALUES (1, 0)')
+        # Leaderboard table with all fields
         conn.execute('''
-            CREATE TABLE IF NOT EXISTS player_progress (
+            CREATE TABLE IF NOT EXISTS leaderboard (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                callsign TEXT UNIQUE,
-                stages_solved INTEGER DEFAULT 0,
+                callsign TEXT UNIQUE NOT NULL,
+                solved_stages TEXT DEFAULT '[]',
+                solved_count INTEGER DEFAULT 0,
                 elapsed_seconds INTEGER DEFAULT 0,
+                session_start TIMESTAMP,
+                session_end TIMESTAMP,
+                status TEXT DEFAULT 'ACTIVE',
+                score INTEGER DEFAULT 0,
+                claimed_at TIMESTAMP,
+                completion_time INTEGER,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        conn.execute('INSERT OR IGNORE INTO global_counter (id, total) VALUES (1, 0)')
         conn.commit()
 
 def increment_winner_count(session_id):
@@ -50,26 +60,98 @@ def get_total_winners():
         row = conn.execute('SELECT total FROM global_counter WHERE id = 1').fetchone()
         return row['total'] if row else 0
 
+# ---------- NEW SESSION FUNCTIONS ----------
+def create_or_update_session(callsign, start=True):
+    with get_db() as conn:
+        if start:
+            now = datetime.now().isoformat()
+            # Check if exists
+            existing = conn.execute('SELECT callsign FROM leaderboard WHERE callsign = ?', (callsign,)).fetchone()
+            if existing:
+                conn.execute('''
+                    UPDATE leaderboard
+                    SET session_start = ?, status = 'ACTIVE', solved_stages = '[]', solved_count = 0, score = 0, elapsed_seconds = 0
+                    WHERE callsign = ?
+                ''', (now, callsign))
+            else:
+                conn.execute('''
+                    INSERT INTO leaderboard (callsign, session_start, status, solved_stages, solved_count, score, elapsed_seconds)
+                    VALUES (?, ?, 'ACTIVE', '[]', 0, 0, 0)
+                ''', (callsign, now))
+        conn.commit()
+
+def quit_session(callsign):
+    with get_db() as conn:
+        now = datetime.now().isoformat()
+        row = conn.execute('SELECT session_start FROM leaderboard WHERE callsign = ?', (callsign,)).fetchone()
+        if row and row['session_start']:
+            start = datetime.fromisoformat(row['session_start'])
+            duration = int((datetime.now() - start).total_seconds())
+            conn.execute('''
+                UPDATE leaderboard
+                SET session_end = ?, status = 'QUIT', completion_time = ?
+                WHERE callsign = ?
+            ''', (now, duration, callsign))
+        else:
+            conn.execute('''
+                UPDATE leaderboard
+                SET session_end = ?, status = 'QUIT'
+                WHERE callsign = ?
+            ''', (now, callsign))
+        conn.commit()
+
+def get_player_by_callsign(callsign):
+    with get_db() as conn:
+        row = conn.execute('SELECT * FROM leaderboard WHERE callsign = ?', (callsign,)).fetchone()
+        return dict(row) if row else None
+
+def claim_prize_db(callsign):
+    with get_db() as conn:
+        now = datetime.now().isoformat()
+        # Update status and claimed_at, compute completion time
+        row = conn.execute('SELECT session_start FROM leaderboard WHERE callsign = ?', (callsign,)).fetchone()
+        if row and row['session_start']:
+            start = datetime.fromisoformat(row['session_start'])
+            completion = int((datetime.now() - start).total_seconds())
+            conn.execute('''
+                UPDATE leaderboard
+                SET status = 'COMPLETED', claimed_at = ?, completion_time = ?
+                WHERE callsign = ?
+            ''', (now, completion, callsign))
+        else:
+            conn.execute('''
+                UPDATE leaderboard
+                SET status = 'COMPLETED', claimed_at = ?
+                WHERE callsign = ?
+            ''', (now, callsign))
+        conn.commit()
+
+def update_player_progress_db(callsign, solved_stages, elapsed_seconds):
+    with get_db() as conn:
+        solved_list = solved_stages if isinstance(solved_stages, list) else []
+        solved_count = len(solved_list)
+        # Also compute score (e.g., 100 per stage)
+        score = solved_count * 100
+        conn.execute('''
+            UPDATE leaderboard
+            SET solved_stages = ?, solved_count = ?, score = ?, elapsed_seconds = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE callsign = ?
+        ''', (json.dumps(solved_list), solved_count, score, elapsed_seconds, callsign))
+        conn.commit()
+
 def get_leaderboard():
     with get_db() as conn:
         rows = conn.execute('''
-            SELECT callsign, stages_solved, elapsed_seconds, updated_at
-            FROM player_progress
-            ORDER BY stages_solved DESC, elapsed_seconds ASC
-            LIMIT 20
+            SELECT callsign, solved_count as solves, score, status, 
+                   session_start, session_end, completion_time,
+                   claimed_at
+            FROM leaderboard
+            ORDER BY 
+                score DESC,
+                solves DESC,
+                completion_time ASC NULLS LAST
         ''').fetchall()
         return [dict(row) for row in rows]
 
-def update_player_progress(callsign, solved, elapsed_seconds):
-    with get_db() as conn:
-        conn.execute('''
-            INSERT INTO player_progress (callsign, stages_solved, elapsed_seconds)
-            VALUES (?, ?, ?)
-            ON CONFLICT(callsign) DO UPDATE SET
-                stages_solved = excluded.stages_solved,
-                elapsed_seconds = excluded.elapsed_seconds,
-                updated_at = CURRENT_TIMESTAMP
-        ''', (callsign, len(solved), elapsed_seconds))
-        conn.commit()
-
+# Initialize
 init_db()

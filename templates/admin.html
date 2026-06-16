@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard – CypherCTF</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="admin-container">
+    <h1>Admin Dashboard</h1>
+    <div class="admin-stats">
+        <div class="stat-box">Total: {{ total }}</div>
+        <div class="stat-box">Active: {{ active }}</div>
+        <div class="stat-box">Completed: {{ completed }}</div>
+        <div class="stat-box">Quit: {{ quit_count }}</div>
+    </div>
+    <table class="lb-table">
+        <thead><tr><th>Callsign</th><th>Status</th><th>Solves</th><th>Score</th><th>Elapsed</th><th>Completion</th></tr></thead>
+        <tbody>
+        {% for p in players %}
+        <tr>
+            <td>{{ p.callsign }}</td>
+            <td>{{ p.status }}</td>
+            <td>{{ p.solves }}</td>
+            <td>{{ p.score }}</td>
+            <td>{{ p.elapsed_seconds }}</td>
+            <td>{{ p.completion_time or '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, session
-from database import increment_winner_count, get_total_winners
+from database import increment_winner_count, get_total_winners, claim_prize_db, get_player_by_callsign
 import uuid
 
 prize_bp = Blueprint('prize', __name__)
@@ -14,7 +14,14 @@ def claim_prize():
         session['claimed'] = True
         session.modified = True
 
-        # Generate a unique session ID if not already present
+        callsign = session.get('callsign')
+        if not callsign:
+            return jsonify({'error': 'No callsign'}), 401
+
+        # Use database function to mark prize claimed
+        claim_prize_db(callsign)
+
+        # Generate unique session ID if not present
         if '_id' not in session:
             session['_id'] = str(uuid.uuid4())
         session_id = session['_id']

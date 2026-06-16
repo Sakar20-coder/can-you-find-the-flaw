@@ -655,3 +655,24 @@ textarea {
   .hero-h1 { font-size: clamp(2.8rem, 12vw, 4.8rem); }
   .btn-cta { padding: 12px 28px; font-size: 0.7rem; }
 }
+/* Fix for long tokens in response */
+.rt-body {
+    white-space: pre-wrap !important;
+    word-break: break-all !important;
+    overflow-wrap: anywhere !important;
+    overflow-x: auto !important;
+    max-width: 100% !important;
+}
+
+.rt-body pre {
+    white-space: pre-wrap !important;
+    word-break: break-all !important;
+    overflow-wrap: anywhere !important;
+    overflow-x: auto !important;
+    max-width: 100% !important;
+    padding: 8px;
+    background: rgba(0,0,0,0.05);
+    border-radius: 4px;
+    font-size: 0.7rem;
+    margin: 0;
+}

@@ -1,6 +1,6 @@
 {% include 'header.html' %}
 
-<!-- FULL-SCREEN WELCOME OVERLAY (hidden initially) -->
+<!-- FULL-SCREEN WELCOME OVERLAY -->
 <div id="welcomeOverlay" class="welcome-overlay" style="display: none;">
   <div class="welcome-content">
     <div class="welcome-glitch" id="welcomeText">WELCOME TO THE ARENA,</div>
@@ -9,7 +9,7 @@
   </div>
 </div>
 
-<!-- AUTHENTICATION MODAL (shown first) -->
+<!-- AUTHENTICATION MODAL -->
 <div class="modal-overlay" id="authModal">
   <div class="modal-card">
     <div class="modal-eyebrow">// AUTHENTICATION REQUIRED</div>
@@ -30,10 +30,10 @@
   </div>
 </div>
 
-
+<!-- MAIN GAME CONTAINER -->
 <div class="game-container" id="gameContainer" style="display: none;">
 
-  <!-- IN-GAME HEADER (NEW) -->
+  <!-- IN-GAME HEADER -->
   <header class="game-header-inner">
     <div class="logo">CYPHER<span>//</span>CTF</div>
     <nav class="header-nav-inner" aria-label="Main navigation">
@@ -42,11 +42,9 @@
       <a href="#prize" class="nav-link" id="nav-prize">PRIZE</a>
     </nav>
     <div class="header-right-inner">
-      <!-- Existing callsign badge (kept intact) -->
       <div class="callsign-badge" id="callsignBadge">
         <strong id="callsignDisplay">—</strong>
       </div>
-      <!-- Existing timer badge (kept intact) -->
       <div class="timer-badge" id="timerBadge">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="12" cy="12" r="10"/>
@@ -54,7 +52,6 @@
         </svg>
         <span id="timerValue">00:00:00</span>
       </div>
-      <!-- NEW theme toggle -->
       <button class="theme-toggle" id="theme-btn" aria-label="Toggle theme">
         <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="5"/>
@@ -74,7 +71,7 @@
     </div>
   </header>
 
-  <!-- PROGRESS STRIP (NEW) -->
+  <!-- PROGRESS STRIP -->
   <div class="progress-strip" id="progress-strip">
     <span class="ps-label">PROGRESS</span>
     <div class="ps-track">
@@ -109,7 +106,7 @@
     <span class="ps-pct" id="ps-pct">0%</span>
   </div>
 
-  <!-- HERO (NEW) -->
+  <!-- HERO -->
   <main class="hero" id="hero">
     <div class="hero-grid" aria-hidden="true"></div>
     <div class="hero-tag">
@@ -146,13 +143,13 @@
     </div>
   </main>
 
-  <!-- STAGES SECTION (replacing old stage-section) -->
+  <!-- STAGES SECTION -->
   <section class="stages-section" id="stages-section">
     <div class="section-title">// CHALLENGE STAGES</div>
     <div class="stage-grid" id="stages"></div>
   </section>
 
-  <!-- LEADERBOARD & PRIZE (replacing old leaderboard-placeholder) -->
+  <!-- LEADERBOARD & PRIZE -->
   <section class="leaderboard-section" id="leaderboard">
     <div class="lb-header">🏆 LIVE LEADERBOARD</div>
     <div class="lb-table-wrap">
@@ -167,7 +164,7 @@
     <div id="prizeResponse"></div>
   </section>
 
-  <!-- FOOTER (kept as before) -->
+  <!-- FOOTER -->
   <footer class="game-footer">
     <div class="footer-left">// CAN YOU FIND THE FLAW — Ethical CTF playground</div>
     <div class="footer-right">◆ ACTIVE SESSION</div>
@@ -175,6 +172,7 @@
 
 </div><!-- /game-container -->
 
-
+<!-- Socket.IO client (needed for real-time updates) -->
+<script src="/static/js/main.js"></script>
 
 {% include 'footer.html' %}

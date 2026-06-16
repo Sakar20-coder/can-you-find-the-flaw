@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Summary – CypherCTF</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div id="toastContainer"></div>
+<div class="summary-container">
+    <div class="summary-card">
+        <div class="summary-header">
+            <span class="summary-badge">// SESSION SUMMARY</span>
+            <h1>Session Overview</h1>
+        </div>
+        <div class="summary-body">
+            <div class="summary-row"><span class="label">Callsign</span><span class="value">{{ player.callsign }}</span></div>
+            <div class="summary-row"><span class="label">Status</span>
+                <span class="value status-badge {% if player.status == 'COMPLETED' %}status-completed{% elif player.status == 'QUIT' %}status-quit{% else %}status-active{% endif %}">
+                    {{ player.status }}
+                </span>
+            </div>
+            <div class="summary-row"><span class="label">Start Time</span><span class="value">{{ player.session_start or '—' }}</span></div>
+            <div class="summary-row"><span class="label">End Time</span><span class="value">{{ player.session_end or '—' }}</span></div>
+            <div class="summary-row"><span class="label">Total Time</span><span class="value">
+                {% if player.completion_time %}
+                    {{ ((player.completion_time // 60) | string) + 'm ' + ((player.completion_time % 60) | string) + 's' }}
+                {% else %}
+                    —
+                {% endif %}
+            </span></div>
+            <div class="summary-row"><span class="label">Challenges Solved</span><span class="value">{{ player.solved_count or 0 }} / 4</span></div>
+            <div class="summary-row"><span class="label">Score</span><span class="value">{{ player.score or 0 }}</span></div>
+            {% if player.claimed_at %}
+            <div class="summary-row"><span class="label">Prize Claimed At</span><span class="value">{{ player.claimed_at }}</span></div>
+            {% endif %}
+        </div>
+        <div class="summary-footer">
+            <a href="/" class="btn btn-primary">BACK TO ARENA</a>
+        </div>
+    </div>
+</div>
+</body>
+</html>
