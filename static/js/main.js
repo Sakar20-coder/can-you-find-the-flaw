@@ -468,3 +468,94 @@ if (callsignInput) {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', checkExistingSession);
+
+// ===== NEW HOMEPAGE FUNCTIONS (append to main.js) =====
+
+// Update progress strip
+function updateProgress() {
+  const solved = solvedStages || [];
+  const pct = Math.round((solved.length / 4) * 100);
+  const pctEl = document.getElementById('ps-pct');
+  if (pctEl) pctEl.textContent = pct + '%';
+
+  for (let i = 0; i < 4; i++) {
+    const node = document.getElementById('ps-node-' + i);
+    const line = document.getElementById('ps-line-' + i);
+    if (!node) continue;
+    node.classList.remove('active', 'done');
+    if (solved.includes(i)) {
+      node.classList.add('done');
+      const numEl = node.querySelector('.ps-num');
+      if (numEl) {
+        numEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+      }
+      if (line) line.classList.add('done');
+    } else if (solved.length === i || (i === 0 && solved.length === 0)) {
+      node.classList.add('active');
+    }
+  }
+}
+
+// Theme toggle
+function setTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('ctf_theme', t);
+  const sun = document.getElementById('icon-sun');
+  const moon = document.getElementById('icon-moon');
+  if (sun && moon) {
+    sun.style.display = t === 'dark' ? 'block' : 'none';
+    moon.style.display = t === 'light' ? 'block' : 'none';
+  }
+}
+function getTheme() { return localStorage.getItem('ctf_theme') || 'dark'; }
+
+// Event listeners (these do not replace your existing ones)
+document.addEventListener('DOMContentLoaded', function() {
+  // Theme toggle
+  const themeBtn = document.getElementById('theme-btn');
+  if (themeBtn) {
+    themeBtn.addEventListener('click', function() {
+      setTheme(getTheme() === 'dark' ? 'light' : 'dark');
+    });
+  }
+  setTheme(getTheme());
+
+  // CTA button -> scroll to stages
+  const startBtn = document.getElementById('start-btn');
+  if (startBtn) {
+    startBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const section = document.getElementById('stages-section');
+      if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  // Progress nodes -> scroll to stages
+  for (let i = 0; i < 4; i++) {
+    const node = document.getElementById('ps-node-' + i);
+    if (node) {
+      node.addEventListener('click', function() {
+        const section = document.getElementById('stages-section');
+        if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }
+
+  // Nav links -> smooth scroll
+  document.querySelectorAll('.header-nav-inner .nav-link').forEach(link => {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      const target = this.getAttribute('href');
+      if (target && target.startsWith('#')) {
+        const section = document.querySelector(target);
+        if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+
+  // If user already authenticated, update progress and leaderboard
+  if (typeof callsign !== 'undefined' && callsign) {
+    updateProgress();
+    if (typeof fetchLeaderboard === 'function') fetchLeaderboard();
+  }
+});

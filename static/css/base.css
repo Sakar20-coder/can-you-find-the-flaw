@@ -49,3 +49,55 @@ body::after {
   background: radial-gradient(circle at 20% 30%, rgba(0,0,0,0.7), rgba(0,0,0,0.9));
   z-index: -1;
 }
+
+/* ===== THEME VARIABLES – COMPLETE ===== */
+:root {
+  /* Dark mode (default) */
+  --bg: #0b0b10;
+  --bg-header: rgba(11, 11, 16, 0.92);
+  --bg-strip: #12121a;
+  --bg-card: #13131e;
+  --border: #28283a;
+  --text: #e8e8ec;
+  --text-dim: #8a8a98;
+  --red: #c0392b;
+  --red-glow: #e53e2e;
+  --orange: #e55a1c;
+  --border-glow: rgba(192, 57, 43, 0.5);
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Inter', sans-serif;
+  --display: 'Bebas Neue', sans-serif;
+  --header-h: 60px;
+  --strip-h: 44px;
+  --radius: 6px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-theme="light"] {
+  --bg: #eeebe4;
+  --bg-header: rgba(238, 235, 228, 0.94);
+  --bg-strip: #e6e3dc;
+  --bg-card: #f5f2eb;
+  --border: #d4d0c8;
+  --text: #1a1a1e;
+  --text-dim: #6a6860;
+  /* Keep the accent colours the same */
+  --red: #c0392b;
+  --orange: #e55a1c;
+  --red-glow: #e53e2e;
+  --border-glow: rgba(192, 57, 43, 0.5);
+}
+
+/* Light mode background override */
+[data-theme="light"] body::before {
+  background: var(--bg) !important; /* solid light colour */
+  filter: none !important;
+}
+[data-theme="light"] body::after {
+  display: none !important;
+}
+
+/* Ensure the hero grid uses the border colour for dots */
+.hero-grid {
+  background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+}
