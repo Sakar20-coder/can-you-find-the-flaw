@@ -1,10 +1,12 @@
-// ======================== MAIN.JS – FULL CTF CLIENT (polling version) ========================
+// ======================== MAIN.JS – FULL CTF CLIENT ========================
 let solvedStages = [];
 let lbPage = 0;
 const LB_PER_PAGE = 8;
 let startTime = parseInt(localStorage.getItem('ctf_startTime') || '0');
 let timerInterval = null;
 let callsign = '';
+let allPlayers = [];
+let achievementShown = {};
 
 // ----- Toast -----
 function showToast(message, type = 'info') {
@@ -85,16 +87,110 @@ async function checkSolved() {
   try {
     const res = await fetch('/api/check_solved', { credentials: 'include' });
     const data = await res.json();
+    const prevSolved = [...solvedStages];
     solvedStages = data.solved || [];
     callsign = data.callsign || '';
     renderStages();
     updateProgress();
-    updatePrizeLock();        // <-- Prize lock update
+    updatePrizeLock();
     updatePlayerProgress();
+    
+    // Check if new stages were solved
+    const newStages = solvedStages.filter(s => !prevSolved.includes(s));
+    if (newStages.length > 0) {
+      // Show achievement for each new stage
+      newStages.forEach(stage => {
+        showStageAchievement(stage + 1);
+      });
+    }
+    
+    // Check if all 4 are solved (first time)
+    if (solvedStages.length === 4 && prevSolved.length < 4) {
+      setTimeout(() => showFullAchievement(), 800);
+    }
   } catch (err) {
     console.error('Check solved failed', err);
   }
 }
+
+// ===== ACHIEVEMENT SYSTEM =====
+
+function showStageAchievement(stageNum) {
+  const emojis = ['🔓', '🛡️', '💎', '🚀'];
+  const titles = ['STAGE 1 COMPLETE!', 'STAGE 2 COMPLETE!', 'STAGE 3 COMPLETE!', 'STAGE 4 COMPLETE!'];
+  const subs = [
+    'You cracked the JWT None vulnerability!',
+    'You exploited the JSONP leak!',
+    'You blindsided the SQL injection!',
+    'You extracted the XXE flag!'
+  ];
+  
+  showToast(`${emojis[stageNum-1]} ${titles[stageNum-1]} ${subs[stageNum-1]}`, 'success');
+}
+
+function showFullAchievement() {
+  const overlay = document.getElementById('achievementOverlay');
+  const title = document.getElementById('achievementTitle');
+  const sub = document.getElementById('achievementSub');
+  const emoji = document.getElementById('achievementEmoji');
+  const stagesSolved = document.getElementById('achStagesSolved');
+  const rank = document.getElementById('achPlayerRank');
+  const total = document.getElementById('achTotalSolvers');
+  
+  // Get player's rank
+  const sorted = sortPlayers(allPlayers);
+  const playerRank = sorted.findIndex(p => p.callsign === callsign) + 1;
+  const totalSolvers = sorted.length;
+  
+  // Random celebration emojis
+  const celebrationEmojis = ['🎉', '🎊', '👏', '🏆', '⭐', '🔥', '💪', '🚀'];
+  const randomEmoji = celebrationEmojis[Math.floor(Math.random() * celebrationEmojis.length)];
+  
+  emoji.textContent = randomEmoji;
+  title.textContent = '🏆 YOU DID IT!';
+  sub.textContent = `You're the #${playerRank} person to solve all 4 challenges!`;
+  stagesSolved.textContent = '4';
+  rank.textContent = `#${playerRank}`;
+  total.textContent = totalSolvers;
+  
+  // Add confetti
+  const container = document.getElementById('confettiContainer');
+  container.innerHTML = '';
+  const colors = ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff', '#5f27cd', '#1dd1a1'];
+  for (let i = 0; i < 40; i++) {
+    const confetti = document.createElement('div');
+    confetti.className = 'confetti';
+    confetti.style.left = Math.random() * 100 + '%';
+    confetti.style.top = '-10px';
+    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+    confetti.style.width = (Math.random() * 8 + 4) + 'px';
+    confetti.style.height = (Math.random() * 8 + 4) + 'px';
+    confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+    confetti.style.animationDelay = (Math.random() * 2) + 's';
+    container.appendChild(confetti);
+  }
+  
+  overlay.classList.add('show');
+  
+  // Speak it
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(
+      `Congratulations ${callsign}! You solved all 4 challenges! You are number ${playerRank} to complete the arena!`
+    );
+    utterance.rate = 0.9;
+    utterance.pitch = 1.1;
+    setTimeout(() => window.speechSynthesis.speak(utterance), 300);
+  }
+}
+
+// Close achievement overlay
+document.getElementById('achievementBtn')?.addEventListener('click', function() {
+  document.getElementById('achievementOverlay').classList.remove('show');
+  // Scroll to prize section
+  document.getElementById('prize').scrollIntoView({ behavior: 'smooth' });
+});
 
 function renderStages() {
   const container = document.getElementById('stages');
@@ -232,13 +328,26 @@ window.getHint = async function(stage) {
   }
 };
 
-// ======================== LEADERBOARD (polling) ========================
+// ======================== LEADERBOARD – SORTED BY SOLVED + TIME ========================
+
+function sortPlayers(players) {
+  return [...players].sort((a, b) => {
+    // First by solved count (descending)
+    if (a.solved_count !== b.solved_count) {
+      return b.solved_count - a.solved_count;
+    }
+    // Then by elapsed time (ascending - faster is better)
+    return (a.elapsed_seconds || 0) - (b.elapsed_seconds || 0);
+  });
+}
+
 let leaderboardPollInterval = null;
 
 async function fetchLeaderboard() {
   try {
     const res = await fetch('/api/leaderboard');
     const data = await res.json();
+    allPlayers = data;
     renderLeaderboard(data);
   } catch(e) {
     console.error('Leaderboard fetch failed', e);
@@ -248,28 +357,80 @@ async function fetchLeaderboard() {
 function renderLeaderboard(players) {
   const tbody = document.getElementById('lbBody');
   if (!tbody) return;
-  if (!players.length) {
-    tbody.innerHTML = '<tr><td colspan="4" class="lb-empty">No solvers yet. Be the first.</td></tr>';
-    document.getElementById('lbPageInfo').innerText = 'Showing 0 entries';
+  
+  const sorted = sortPlayers(players);
+  
+  // Update podium (Top 3)
+  const podiumPlayers = sorted.slice(0, 3);
+  const podiumSlots = [
+    { id: 'podium-1' },
+    { id: 'podium-2' },
+    { id: 'podium-3' }
+  ];
+  
+  podiumSlots.forEach((slot, index) => {
+    const el = document.getElementById(slot.id);
+    if (!el) return;
+    const player = podiumPlayers[index];
+    if (player) {
+      el.querySelector('.podium-handle').textContent = player.callsign || '—';
+      el.querySelector('.podium-stages').textContent = `${player.solved_count || 0}/4`;
+      el.querySelector('.podium-time').textContent = secondsToHms(player.elapsed_seconds);
+      el.querySelector('.podium-score').textContent = calculateScore(player);
+      el.style.display = 'flex';
+    } else {
+      el.querySelector('.podium-handle').textContent = '—';
+      el.querySelector('.podium-stages').textContent = '0/4';
+      el.querySelector('.podium-time').textContent = '—';
+      el.querySelector('.podium-score').textContent = '0';
+    }
+  });
+  
+  // If no players
+  if (!sorted.length) {
+    tbody.innerHTML = '<div class="lb-empty">No solvers yet. Be the first.</div>';
+    document.getElementById('lbPageInfo').innerHTML = 'Showing <strong>0</strong> entries';
     return;
   }
+  
+  // Pagination - skip top 3 for table (they're shown on podium)
+  const tablePlayers = sorted.slice(3);
   const start = lbPage * LB_PER_PAGE;
-  const slice = players.slice(start, start + LB_PER_PAGE);
-  const totalPages = Math.ceil(players.length / LB_PER_PAGE);
-  tbody.innerHTML = slice.map((p, i) => {
-    const rank = start + i + 1;
-    const rankClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : 'other';
-    const rankEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+  const slice = tablePlayers.slice(start, start + LB_PER_PAGE);
+  const totalPages = Math.ceil(tablePlayers.length / LB_PER_PAGE);
+  
+  if (!slice.length) {
+    tbody.innerHTML = '<div class="lb-empty">No more players to show</div>';
+    document.getElementById('lbPageInfo').innerHTML = `Showing <strong>${start + 1}</strong> – <strong>${start}</strong> of <strong>${tablePlayers.length}</strong> entries`;
+    return;
+  }
+  
+  tbody.innerHTML = slice.map((p) => {
+    // Rank is actual rank (including top 3)
+    const rank = sorted.indexOf(p) + 1;
+    let rankClass = 'other';
+    let rankDisplay = `#${rank}`;
+    if (rank === 1) { rankClass = 'gold'; rankDisplay = '🥇'; }
+    else if (rank === 2) { rankClass = 'silver'; rankDisplay = '🥈'; }
+    else if (rank === 3) { rankClass = 'bronze'; rankDisplay = '🥉'; }
+    
     const isMe = (p.callsign === callsign);
-    const stageDots = [1,2,3,4].map(n => `<div class="lb-stage-dot ${p.solved_count >= n ? 'done' : ''}">${n}</div>`).join('');
+    const stageDots = [1,2,3,4].map(n => {
+      return `<div class="lb-stage-dot ${p.solved_count >= n ? 'done' : ''}">${n}</div>`;
+    }).join('');
     const timeStr = secondsToHms(p.elapsed_seconds);
-    return `<tr class="${isMe ? 'my-row' : ''}">
-      <td><span class="lb-rank ${rankClass}">${rankEmoji}</span></td>
-      <td class="lb-handle">${escapeHtml(p.callsign)}${isMe ? '<span class="you-tag">YOU</span>' : ''}</td>
-      <td><div class="lb-stages">${stageDots}</div></td>
-      <td class="lb-time">${timeStr}</td>
-    </tr>`;
+    const score = calculateScore(p);
+    
+    return `<div class="lb-table-row ${isMe ? 'my-row' : ''}">
+      <span class="lb-rank ${rankClass}">${rankDisplay}</span>
+      <span class="lb-handle">${escapeHtml(p.callsign)}${isMe ? '<span class="you-tag">YOU</span>' : ''}</span>
+      <div class="lb-stages">${stageDots}</div>
+      <span class="lb-time">${timeStr}</span>
+      <span class="lb-score">${score}</span>
+    </div>`;
   }).join('');
+  
+  // Pagination buttons
   const btnWrap = document.getElementById('lbPageBtns');
   if (totalPages <= 1) {
     btnWrap.innerHTML = '';
@@ -281,7 +442,13 @@ function renderLeaderboard(players) {
     btns += `<button class="lb-page-btn" onclick="lbGo(${lbPage+1})" ${lbPage===totalPages-1?'disabled':''}>›</button>`;
     btnWrap.innerHTML = btns;
   }
-  document.getElementById('lbPageInfo').innerText = `Showing ${players.length} entries`;
+  
+  // Info bar - showing entries from table (excluding top 3)
+  const startEntry = start + 4; // +4 because rank 1-3 are on podium, rank 4 is first in table
+  const endEntry = Math.min(start + LB_PER_PAGE + 3, sorted.length);
+  document.getElementById('lbPageInfo').innerHTML = `
+    Showing <strong>${startEntry}</strong> – <strong>${endEntry}</strong> of <strong>${sorted.length}</strong> entries
+  `;
 }
 
 function secondsToHms(sec) {
@@ -297,7 +464,7 @@ function escapeHtml(s) {
 }
 
 window.lbGo = function(p) {
-  lbPage = Math.max(0, Math.min(p, 100));
+  lbPage = Math.max(0, p);
   fetchLeaderboard();
 };
 
@@ -368,7 +535,6 @@ async function authenticateAndEnter(rawCallsign) {
 
   startGlobalTimer();
 
-  // Poll leaderboard every 3 seconds
   if (leaderboardPollInterval) clearInterval(leaderboardPollInterval);
   leaderboardPollInterval = setInterval(fetchLeaderboard, 3000);
 
@@ -389,9 +555,8 @@ async function authenticateAndEnter(rawCallsign) {
 
   await fetchCounter();
   await checkSolved();
-  updatePrizeLock();        // <-- Prize lock update
+  updatePrizeLock();
   fetchLeaderboard();
-  // Create quit button after auth
   setTimeout(createQuitButton, 500);
   return true;
 }
@@ -418,7 +583,7 @@ async function checkExistingSession() {
       leaderboardPollInterval = setInterval(fetchLeaderboard, 3000);
       await fetchCounter();
       await checkSolved();
-      updatePrizeLock();        // <-- Prize lock update
+      updatePrizeLock();
       showToast(`Welcome back, ${data.callsign}.`, 'info');
       fetchLeaderboard();
       setTimeout(createQuitButton, 500);
@@ -439,7 +604,6 @@ if (callsignInput) {
 
 // ======================== HOMEPAGE ENHANCEMENTS ========================
 
-// Progress strip
 function updateProgress() {
   const solved = solvedStages || [];
   const pct = Math.round((solved.length / 4) * 100);
@@ -477,7 +641,8 @@ function setTheme(t) {
 }
 function getTheme() { return localStorage.getItem('ctf_theme') || 'dark'; }
 
-// Quit button
+// ===== ENHANCED QUIT BUTTON =====
+
 function createQuitButton() {
   const headerRight = document.querySelector('.header-right-inner');
   if (!headerRight) return;
@@ -498,19 +663,92 @@ function createQuitButton() {
   quitBtn.style.fontWeight = '700';
   quitBtn.style.letterSpacing = '0.08em';
   quitBtn.style.transition = 'all 0.3s';
-  quitBtn.addEventListener('click', function() {
-    if (confirm('Are you sure you want to quit this session?')) {
-      fetch('/api/quit_session', { method: 'POST', credentials: 'include' })
+  quitBtn.addEventListener('click', showQuitDialog);
+  headerRight.appendChild(quitBtn);
+}
+
+function showQuitDialog() {
+  const overlay = document.getElementById('quitOverlay');
+  const stagesSolved = document.getElementById('quitStagesSolved');
+  const timeSpent = document.getElementById('quitTimeSpent');
+  const affirmation = document.getElementById('quitAffirmation');
+  
+  // Get elapsed time from server (same as header timer)
+  fetch('/api/session_status', { credentials: 'include' })
+    .then(res => res.json())
+    .then(data => {
+      if (data.elapsed !== undefined) {
+        const hrs = String(Math.floor(data.elapsed / 3600)).padStart(2,'0');
+        const mins = String(Math.floor((data.elapsed % 3600) / 60)).padStart(2,'0');
+        const secs = String(data.elapsed % 60).padStart(2,'0');
+        timeSpent.textContent = `${hrs}:${mins}:${secs}`;
+      } else {
+        // Fallback to local calculation
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const hrs = String(Math.floor(elapsed / 3600)).padStart(2,'0');
+        const mins = String(Math.floor((elapsed % 3600) / 60)).padStart(2,'0');
+        const secs = String(elapsed % 60).padStart(2,'0');
+        timeSpent.textContent = `${hrs}:${mins}:${secs}`;
+      }
+    })
+    .catch(() => {
+      // Fallback if API fails
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const hrs = String(Math.floor(elapsed / 3600)).padStart(2,'0');
+      const mins = String(Math.floor((elapsed % 3600) / 60)).padStart(2,'0');
+      const secs = String(elapsed % 60).padStart(2,'0');
+      timeSpent.textContent = `${hrs}:${mins}:${secs}`;
+    });
+  
+  // Update stages solved
+  stagesSolved.textContent = solvedStages.length;
+  
+  // Hide any previous affirmation
+  affirmation.style.display = 'none';
+  
+  // Show the overlay
+  overlay.classList.add('show');
+}
+
+// Quit dialog events
+document.getElementById('quitCancel')?.addEventListener('click', function() {
+  document.getElementById('quitOverlay').classList.remove('show');
+});
+
+document.getElementById('quitConfirm')?.addEventListener('click', function() {
+  const affirmation = document.getElementById('quitAffirmation');
+  const solved = solvedStages.length;
+  const total = 4;
+  
+  let message = '';
+  const emojis = ['💪', '🔥', '🌟', '👏', '🎯', '🚀'];
+  const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+  
+  if (solved === 0) {
+    message = `${randomEmoji} Every master was once a beginner. Keep going!`;
+  } else if (solved < 3) {
+    message = `${randomEmoji} You've solved ${solved}/${total}. That's solid progress! Come back stronger!`;
+  } else if (solved === 3) {
+    message = `${randomEmoji} So close! Just 1 more stage to go! You got this!`;
+  } else if (solved === 4) {
+    message = `🏆 LEGEND! You conquered all 4 stages! Go claim your prize! 🏆`;
+  }
+  
+  affirmation.textContent = message;
+  affirmation.style.display = 'block';
+  
+  // After affirmation, quit
+  setTimeout(() => {
+    fetch('/api/quit_session', { method: 'POST', credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         if (data.status === 'quit') {
+          document.getElementById('quitOverlay').classList.remove('show');
           window.location.href = data.redirect;
         }
       });
-    }
-  });
-  headerRight.appendChild(quitBtn);
-}
+  }, 3000);
+});
 
 // ================================================================
 // PRIZE SECTION – LOCK & TOKEN
@@ -523,7 +761,6 @@ function updatePrizeLock() {
   const claimBtn = document.getElementById('claimBtn');
   const tokenBox = document.getElementById('prizeTokenBox');
 
-  // Update dots
   dots.forEach((dot, i) => {
     dot.classList.remove('done', 'active');
     if (solved.includes(i)) {
@@ -533,7 +770,6 @@ function updatePrizeLock() {
     }
   });
 
-  // Check if all 4 stages are solved
   const allSolved = solved.length === 4;
 
   if (allSolved) {
@@ -547,11 +783,11 @@ function updatePrizeLock() {
 }
 
 // ================================================================
-// DOM READY – Everything in one place
+// DOM READY
 // ================================================================
 
 document.addEventListener('DOMContentLoaded', function() {
-  // ---- THEME ----
+  // Theme
   const themeBtn = document.getElementById('theme-btn');
   if (themeBtn) {
     themeBtn.addEventListener('click', function() {
@@ -560,7 +796,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   setTheme(getTheme());
 
-  // ---- CTA SCROLL ----
+  // CTA scroll
   const startBtn = document.getElementById('start-btn');
   if (startBtn) {
     startBtn.addEventListener('click', function(e) {
@@ -570,7 +806,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // ---- PROGRESS NODES SCROLL ----
+  // Progress nodes scroll
   for (let i = 0; i < 4; i++) {
     const node = document.getElementById('ps-node-' + i);
     if (node) {
@@ -581,7 +817,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // ---- NAV LINKS SMOOTH SCROLL ----
+  // Nav links
   document.querySelectorAll('.header-nav-inner .nav-link').forEach(link => {
     link.addEventListener('click', function(e) {
       e.preventDefault();
@@ -593,7 +829,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // ---- PRIZE CLAIM BUTTON ----
+  // Prize claim
   const claimBtn = document.getElementById('claimBtn');
   const prizeResponse = document.getElementById('prizeResponse');
   const tokenBox = document.getElementById('prizeTokenBox');
@@ -652,7 +888,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // ---- COPY TOKEN ----
+  // Copy token
   if (copyBtn && tokenValue) {
     copyBtn.addEventListener('click', function() {
       const text = tokenValue.textContent;
@@ -682,7 +918,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // ---- CHECK EXISTING SESSION ----
   checkExistingSession();
 });
 
@@ -696,4 +931,264 @@ window.addEventListener('scroll', function() {
       header.classList.remove('scrolled');
     }
   }
+});
+// ================================================================
+// LEADERBOARD – SORTING & PODIUM (ADD THIS)
+// ================================================================
+
+function sortPlayers(players) {
+  return [...players].sort((a, b) => {
+    if (a.solved_count !== b.solved_count) {
+      return b.solved_count - a.solved_count;
+    }
+    return (a.elapsed_seconds || 0) - (b.elapsed_seconds || 0);
+  });
+}
+
+function calculateScore(player) {
+  const solved = player.solved_count || 0;
+  const time = player.elapsed_seconds || 0;
+  const stageScore = solved * 500;
+  let timeBonus = 0;
+  if (solved > 0 && time > 0) {
+    const avgTimePerStage = time / solved;
+    const maxTime = 3600;
+    const ratio = Math.max(0, 1 - (avgTimePerStage / maxTime));
+    timeBonus = Math.round(50 + (ratio * 450));
+  }
+  return stageScore + timeBonus;
+}
+
+// REPLACE your existing renderLeaderboard with this
+function renderLeaderboard(players) {
+  const tbody = document.getElementById('lbBody');
+  if (!tbody) return;
+  
+  const sorted = sortPlayers(players);
+  
+  // Update podium (Top 3)
+  const podiumPlayers = sorted.slice(0, 3);
+  const podiumSlots = [
+    { id: 'podium-1' },
+    { id: 'podium-2' },
+    { id: 'podium-3' }
+  ];
+  
+  podiumSlots.forEach((slot, index) => {
+    const el = document.getElementById(slot.id);
+    if (!el) return;
+    const player = podiumPlayers[index];
+    if (player) {
+      el.querySelector('.podium-handle').textContent = player.callsign || '—';
+      el.querySelector('.podium-stages').textContent = `${player.solved_count || 0}/4`;
+      el.querySelector('.podium-time').textContent = secondsToHms(player.elapsed_seconds);
+      el.querySelector('.podium-score').textContent = calculateScore(player);
+      el.style.display = 'flex';
+    } else {
+      el.querySelector('.podium-handle').textContent = '—';
+      el.querySelector('.podium-stages').textContent = '0/4';
+      el.querySelector('.podium-time').textContent = '—';
+      el.querySelector('.podium-score').textContent = '0';
+    }
+  });
+  
+  if (!sorted.length) {
+    tbody.innerHTML = '<div class="lb-empty">No solvers yet. Be the first.</div>';
+    document.getElementById('lbPageInfo').innerHTML = 'Showing <strong>0</strong> entries';
+    return;
+  }
+  
+  const start = lbPage * LB_PER_PAGE;
+  const slice = sorted.slice(start, start + LB_PER_PAGE);
+  const totalPages = Math.ceil(sorted.length / LB_PER_PAGE);
+  
+  tbody.innerHTML = slice.map((p) => {
+    const rank = sorted.indexOf(p) + 1;
+    let rankClass = 'other';
+    let rankDisplay = `#${rank}`;
+    if (rank === 1) { rankClass = 'gold'; rankDisplay = '🥇'; }
+    else if (rank === 2) { rankClass = 'silver'; rankDisplay = '🥈'; }
+    else if (rank === 3) { rankClass = 'bronze'; rankDisplay = '🥉'; }
+    
+    const isMe = (p.callsign === callsign);
+    const stageDots = [1,2,3,4].map(n => {
+      return `<div class="lb-stage-dot ${p.solved_count >= n ? 'done' : ''}">${n}</div>`;
+    }).join('');
+    const timeStr = secondsToHms(p.elapsed_seconds);
+    const score = calculateScore(p);
+    
+    return `<div class="lb-table-row ${isMe ? 'my-row' : ''}">
+      <span class="lb-rank ${rankClass}">${rankDisplay}</span>
+      <span class="lb-handle">${escapeHtml(p.callsign)}${isMe ? '<span class="you-tag">YOU</span>' : ''}</span>
+      <div class="lb-stages">${stageDots}</div>
+      <span class="lb-time">${timeStr}</span>
+      <span class="lb-score">${score}</span>
+    </div>`;
+  }).join('');
+  
+  // Pagination buttons
+  const btnWrap = document.getElementById('lbPageBtns');
+  if (totalPages <= 1) {
+    btnWrap.innerHTML = '';
+  } else {
+    let btns = `<button class="lb-page-btn" onclick="lbGo(${lbPage-1})" ${lbPage===0?'disabled':''}>‹</button>`;
+    for (let p=0; p<totalPages; p++) {
+      btns += `<button class="lb-page-btn ${p===lbPage?'active':''}" onclick="lbGo(${p})">${p+1}</button>`;
+    }
+    btns += `<button class="lb-page-btn" onclick="lbGo(${lbPage+1})" ${lbPage===totalPages-1?'disabled':''}>›</button>`;
+    btnWrap.innerHTML = btns;
+  }
+  
+  const startEntry = start + 1;
+  const endEntry = Math.min(start + LB_PER_PAGE, sorted.length);
+  document.getElementById('lbPageInfo').innerHTML = `
+    Showing <strong>${startEntry}</strong> – <strong>${endEntry}</strong> of <strong>${sorted.length}</strong> entries
+  `;
+}
+
+// ================================================================
+// ACHIEVEMENT SYSTEM (ADD THIS)
+// ================================================================
+
+function showFullAchievement() {
+  const overlay = document.getElementById('achievementOverlay');
+  const title = document.getElementById('achievementTitle');
+  const sub = document.getElementById('achievementSub');
+  const emoji = document.getElementById('achievementEmoji');
+  const stagesSolved = document.getElementById('achStagesSolved');
+  const rank = document.getElementById('achPlayerRank');
+  const total = document.getElementById('achTotalSolvers');
+  
+  const sorted = sortPlayers(allPlayers);
+  const playerRank = sorted.findIndex(p => p.callsign === callsign) + 1;
+  const totalSolvers = sorted.length;
+  
+  const celebrationEmojis = ['🎉', '🎊', '👏', '🏆', '⭐', '🔥', '💪', '🚀'];
+  const randomEmoji = celebrationEmojis[Math.floor(Math.random() * celebrationEmojis.length)];
+  
+  emoji.textContent = randomEmoji;
+  title.textContent = '🏆 YOU DID IT!';
+  sub.textContent = `You're the #${playerRank} person to solve all 4 challenges!`;
+  stagesSolved.textContent = '4';
+  rank.textContent = `#${playerRank}`;
+  total.textContent = totalSolvers;
+  
+  // Confetti
+  const container = document.getElementById('confettiContainer');
+  container.innerHTML = '';
+  const colors = ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff', '#5f27cd', '#1dd1a1'];
+  for (let i = 0; i < 40; i++) {
+    const confetti = document.createElement('div');
+    confetti.className = 'confetti';
+    confetti.style.left = Math.random() * 100 + '%';
+    confetti.style.top = '-10px';
+    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+    confetti.style.width = (Math.random() * 8 + 4) + 'px';
+    confetti.style.height = (Math.random() * 8 + 4) + 'px';
+    confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+    confetti.style.animationDelay = (Math.random() * 2) + 's';
+    container.appendChild(confetti);
+  }
+  
+  overlay.classList.add('show');
+  
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(
+      `Congratulations ${callsign}! You solved all 4 challenges! You are number ${playerRank} to complete the arena!`
+    );
+    utterance.rate = 0.9;
+    utterance.pitch = 1.1;
+    setTimeout(() => window.speechSynthesis.speak(utterance), 300);
+  }
+}
+
+// ================================================================
+// QUIT DIALOG – FIXED TIMER (ADD THIS)
+// ================================================================
+
+function showQuitDialog() {
+  const overlay = document.getElementById('quitOverlay');
+  const stagesSolved = document.getElementById('quitStagesSolved');
+  const timeSpent = document.getElementById('quitTimeSpent');
+  const affirmation = document.getElementById('quitAffirmation');
+  
+  // Get elapsed time from server (same as header timer)
+  fetch('/api/session_status', { credentials: 'include' })
+    .then(res => res.json())
+    .then(data => {
+      if (data.elapsed !== undefined) {
+        const hrs = String(Math.floor(data.elapsed / 3600)).padStart(2,'0');
+        const mins = String(Math.floor((data.elapsed % 3600) / 60)).padStart(2,'0');
+        const secs = String(data.elapsed % 60).padStart(2,'0');
+        timeSpent.textContent = `${hrs}:${mins}:${secs}`;
+      } else {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const hrs = String(Math.floor(elapsed / 3600)).padStart(2,'0');
+        const mins = String(Math.floor((elapsed % 3600) / 60)).padStart(2,'0');
+        const secs = String(elapsed % 60).padStart(2,'0');
+        timeSpent.textContent = `${hrs}:${mins}:${secs}`;
+      }
+    })
+    .catch(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const hrs = String(Math.floor(elapsed / 3600)).padStart(2,'0');
+      const mins = String(Math.floor((elapsed % 3600) / 60)).padStart(2,'0');
+      const secs = String(elapsed % 60).padStart(2,'0');
+      timeSpent.textContent = `${hrs}:${mins}:${secs}`;
+    });
+  
+  stagesSolved.textContent = solvedStages.length;
+  affirmation.style.display = 'none';
+  overlay.classList.add('show');
+}
+
+// ================================================================
+// EVENT LISTENERS FOR NEW ELEMENTS (ADD THIS)
+// ================================================================
+
+// Achievement button
+document.getElementById('achievementBtn')?.addEventListener('click', function() {
+  document.getElementById('achievementOverlay').classList.remove('show');
+  document.getElementById('prize').scrollIntoView({ behavior: 'smooth' });
+});
+
+// Quit dialog events
+document.getElementById('quitCancel')?.addEventListener('click', function() {
+  document.getElementById('quitOverlay').classList.remove('show');
+});
+
+document.getElementById('quitConfirm')?.addEventListener('click', function() {
+  const affirmation = document.getElementById('quitAffirmation');
+  const solved = solvedStages.length;
+  const total = 4;
+  
+  let message = '';
+  const emojis = ['💪', '🔥', '🌟', '👏', '🎯', '🚀'];
+  const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+  
+  if (solved === 0) {
+    message = `${randomEmoji} Every master was once a beginner. Keep going!`;
+  } else if (solved < 3) {
+    message = `${randomEmoji} You've solved ${solved}/${total}. That's solid progress! Come back stronger!`;
+  } else if (solved === 3) {
+    message = `${randomEmoji} So close! Just 1 more stage to go! You got this!`;
+  } else if (solved === 4) {
+    message = `🏆 LEGEND! You conquered all 4 stages! Go claim your prize! 🏆`;
+  }
+  
+  affirmation.textContent = message;
+  affirmation.style.display = 'block';
+  
+  setTimeout(() => {
+    fetch('/api/quit_session', { method: 'POST', credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'quit') {
+          document.getElementById('quitOverlay').classList.remove('show');
+          window.location.href = data.redirect;
+        }
+      });
+  }, 2000); // Adjust this value to change how long the affirmation shows
 });

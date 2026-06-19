@@ -29,6 +29,48 @@
     <div class="modal-footer">// Your session is anonymous. No personal data is collected.</div>
   </div>
 </div>
+  <!-- ===== ACHIEVEMENT OVERLAY ===== -->
+  <div class="achievement-overlay" id="achievementOverlay">
+    <div class="achievement-card" id="achievementCard">
+      <div class="confetti-container" id="confettiContainer"></div>
+      <span class="achievement-emoji" id="achievementEmoji">🎉</span>
+      <h2 class="achievement-title" id="achievementTitle">YOU DID IT!</h2>
+      <p class="achievement-sub" id="achievementSub">You solved all 4 challenges!</p>
+      <div class="achievement-stats">
+        <div class="achievement-stat">
+          <span class="num" id="achStagesSolved">4</span>
+          <span class="label">Stages Solved</span>
+        </div>
+        <div class="achievement-stat">
+          <span class="num" id="achPlayerRank">#1</span>
+          <span class="label">Your Rank</span>
+        </div>
+        <div class="achievement-stat">
+          <span class="num" id="achTotalSolvers">0</span>
+          <span class="label">Total Solvers</span>
+        </div>
+      </div>
+      <button class="achievement-btn" id="achievementBtn">🏆 CLAIM YOUR PRIZE</button>
+    </div>
+  </div>
+
+  <!-- ===== QUIT CONFIRMATION OVERLAY ===== -->
+  <div class="quit-overlay" id="quitOverlay">
+    <div class="quit-card">
+      <span class="quit-icon">🚪</span>
+      <h2 class="quit-title">LEAVE THE ARENA?</h2>
+      <p class="quit-sub">Are you sure you want to quit? Your progress will be saved.</p>
+      <div class="quit-stats">
+        <strong id="quitStagesSolved">0</strong> / 4 stages solved · 
+        <strong id="quitTimeSpent">00:00:00</strong> time spent
+      </div>
+      <div class="quit-actions">
+        <button class="btn btn-cancel" id="quitCancel">🔙 STAY</button>
+        <button class="btn btn-quit-confirm" id="quitConfirm">🚪 QUIT</button>
+      </div>
+      <div class="quit-affirmation" id="quitAffirmation" style="display:none;"></div>
+    </div>
+  </div>
 
 <!-- MAIN GAME CONTAINER -->
 <div class="game-container" id="gameContainer" style="display: none;">
@@ -152,16 +194,64 @@
   <!-- LEADERBOARD & PRIZE -->
 <section class="leaderboard-section" id="leaderboard">
   <div class="lb-header">🏆 LIVE LEADERBOARD</div>
-  <div class="lb-table-wrap">
-    <table class="lb-table">
-      <thead><tr><th>Rank</th><th>Handle</th><th>Stages</th><th>Time</th></tr></thead>
-      <tbody id="lbBody"><tr><td colspan="4" class="lb-empty">Loading solvers…</td></tr></tbody>
-    </table>
+
+  <!-- Top 3 Featured Cards -->
+  <div class="lb-podium" id="lbPodium">
+    <div class="lb-podium-card second" id="podium-2">
+      <div class="podium-medal">🥈</div>
+      <div class="podium-rank">#2</div>
+      <div class="podium-handle">—</div>
+      <div class="podium-stats">
+        <span class="podium-stages">0/4</span>
+        <span class="podium-time">—</span>
+      </div>
+      <div class="podium-score">0</div>
+    </div>
+    <div class="lb-podium-card first" id="podium-1">
+      <div class="podium-crown">👑</div>
+      <div class="podium-medal">🥇</div>
+      <div class="podium-rank">#1</div>
+      <div class="podium-handle">—</div>
+      <div class="podium-stats">
+        <span class="podium-stages">0/4</span>
+        <span class="podium-time">—</span>
+      </div>
+      <div class="podium-score">0</div>
+    </div>
+    <div class="lb-podium-card third" id="podium-3">
+      <div class="podium-medal">🥉</div>
+      <div class="podium-rank">#3</div>
+      <div class="podium-handle">—</div>
+      <div class="podium-stats">
+        <span class="podium-stages">0/4</span>
+        <span class="podium-time">—</span>
+      </div>
+      <div class="podium-score">0</div>
+    </div>
+  </div>
+
+  <!-- Main Table -->
+  <div class="lb-table-wrap" id="lbTableWrap">
+    <div class="lb-table-header">
+      <span class="lb-col-rank">RANK</span>
+      <span class="lb-col-handle">HANDLE</span>
+      <span class="lb-col-stages">STAGES</span>
+      <span class="lb-col-time">TIME</span>
+      <span class="lb-col-score">SCORE</span>
+    </div>
+    <div class="lb-table-body" id="lbBody">
+      <div class="lb-empty">Loading solvers…</div>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div class="lb-pagination-wrap">
+    <div class="lb-page-info" id="lbPageInfo">Showing <strong>0</strong> entries</div>
     <div class="lb-pagination" id="lbPageBtns"></div>
-    <div class="lb-page-info" id="lbPageInfo"></div>
   </div>
 
   <!-- ===== PRIZE SECTION ===== -->
+   <div class="lb-header">🏆 Claim Prize</div>
   <div class="prize-wrap" id="prizeWrap">
     <!-- LOCK OVERLAY – NO BLUR, JUST OVERLAY -->
     <div class="prize-lock" id="prizeLock">
