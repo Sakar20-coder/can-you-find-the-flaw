@@ -150,19 +150,55 @@
   </section>
 
   <!-- LEADERBOARD & PRIZE -->
-  <section class="leaderboard-section" id="leaderboard">
-    <div class="lb-header">🏆 LIVE LEADERBOARD</div>
-    <div class="lb-table-wrap">
-      <table class="lb-table">
-        <thead><tr><th>Rank</th><th>Handle</th><th>Stages</th><th>Time</th></tr></thead>
-        <tbody id="lbBody"><tr><td colspan="4" class="lb-empty">Loading solvers…</td></tr></tbody>
-      </table>
-      <div class="lb-pagination" id="lbPageBtns"></div>
-      <div class="lb-page-info" id="lbPageInfo"></div>
+<section class="leaderboard-section" id="leaderboard">
+  <div class="lb-header">🏆 LIVE LEADERBOARD</div>
+  <div class="lb-table-wrap">
+    <table class="lb-table">
+      <thead><tr><th>Rank</th><th>Handle</th><th>Stages</th><th>Time</th></tr></thead>
+      <tbody id="lbBody"><tr><td colspan="4" class="lb-empty">Loading solvers…</td></tr></tbody>
+    </table>
+    <div class="lb-pagination" id="lbPageBtns"></div>
+    <div class="lb-page-info" id="lbPageInfo"></div>
+  </div>
+
+  <!-- ===== PRIZE SECTION ===== -->
+  <div class="prize-wrap" id="prizeWrap">
+    <!-- LOCK OVERLAY – NO BLUR, JUST OVERLAY -->
+    <div class="prize-lock" id="prizeLock">
+      <div class="prize-lock-icon">🔒</div>
+      <div class="prize-lock-text">COMPLETE ALL 4 STAGES TO UNLOCK</div>
+      <div class="prize-lock-dots">
+        <span class="lock-dot" id="lock-dot-0"></span>
+        <span class="lock-dot" id="lock-dot-1"></span>
+        <span class="lock-dot" id="lock-dot-2"></span>
+        <span class="lock-dot" id="lock-dot-3"></span>
+      </div>
     </div>
-    <button class="btn-prize" id="claimBtn">🏆 CLAIM PRIZE</button>
-    <div id="prizeResponse"></div>
-  </section>
+
+    <!-- PRIZE CONTENT (visible behind lock) -->
+    <div class="prize-content">
+      <div class="prize-icon">🏆</div>
+      <h2 class="prize-title">FINAL REWARD</h2>
+      <p class="prize-sub">Solve all four stages to generate your signed prize token. Present it to the event organiser.</p>
+
+      <!-- Token Box -->
+      <div class="prize-token-box" id="prizeTokenBox">
+        <span class="ptb-label">// SIGNED PRIZE TOKEN</span>
+        <div class="ptb-val" id="prizeTokenValue">—</div>
+        <button class="ptb-copy" id="prizeCopyBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          COPY TOKEN
+        </button>
+      </div>
+
+      <button class="btn-prize-claim" id="claimBtn">🏆 CLAIM PRIZE</button>
+      <div id="prizeResponse"></div>
+    </div>
+  </div>
+</section>
 
   <!-- FOOTER -->
   <footer class="game-footer">

@@ -89,6 +89,7 @@ async function checkSolved() {
     callsign = data.callsign || '';
     renderStages();
     updateProgress();
+    updatePrizeLock();        // <-- Prize lock update
     updatePlayerProgress();
   } catch (err) {
     console.error('Check solved failed', err);
@@ -208,7 +209,7 @@ window.sendRequest = async function(stage) {
     const respEl = document.getElementById(`response${stage}`);
     respEl.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
     if (data.solved === true) {
-      showToast(`�� Flag found: ${data.flag}`, 'success');
+      showToast(`🎉 Flag found: ${data.flag}`, 'success');
       await checkSolved();
     }
     if (data.total_winners) {
@@ -230,35 +231,6 @@ window.getHint = async function(stage) {
     showToast('Hint not available', 'error');
   }
 };
-
-// ----- Prize claim -----
-const claimBtn = document.getElementById('claimBtn');
-if (claimBtn) {
-  claimBtn.addEventListener('click', async () => {
-    const prizeDiv = document.getElementById('prizeResponse');
-    if (!prizeDiv) return;
-    try {
-      const res = await fetch('/api/claim', { method: 'POST', credentials: 'include' });
-      const data = await res.json();
-      if (data.success) {
-        prizeDiv.innerHTML = `
-          <div style="background: rgba(40,200,64,0.2); border-left:4px solid #28c840; padding:1rem; border-radius:12px;">
-            <p>${data.message}</p>
-            <p><strong>QR Token:</strong> ${data.qr_text}</p>
-            <p>Total winners: ${data.total_winners}</p>
-            <p><em>Show this to the organizer to claim your prize!</em></p>
-          </div>
-        `;
-        const counterEl = document.getElementById('counter');
-        if (counterEl) counterEl.innerText = `🔍 ${data.total_winners} people have found the flaw so far`;
-      } else {
-        prizeDiv.innerHTML = `<div style="background: rgba(192,57,43,0.2); padding:1rem;">${data.error}</div>`;
-      }
-    } catch(err) {
-      prizeDiv.innerHTML = `<div style="background: rgba(192,57,43,0.2);">Error claiming prize</div>`;
-    }
-  });
-}
 
 // ======================== LEADERBOARD (polling) ========================
 let leaderboardPollInterval = null;
@@ -417,6 +389,7 @@ async function authenticateAndEnter(rawCallsign) {
 
   await fetchCounter();
   await checkSolved();
+  updatePrizeLock();        // <-- Prize lock update
   fetchLeaderboard();
   // Create quit button after auth
   setTimeout(createQuitButton, 500);
@@ -445,6 +418,7 @@ async function checkExistingSession() {
       leaderboardPollInterval = setInterval(fetchLeaderboard, 3000);
       await fetchCounter();
       await checkSolved();
+      updatePrizeLock();        // <-- Prize lock update
       showToast(`Welcome back, ${data.callsign}.`, 'info');
       fetchLeaderboard();
       setTimeout(createQuitButton, 500);
@@ -507,21 +481,23 @@ function getTheme() { return localStorage.getItem('ctf_theme') || 'dark'; }
 function createQuitButton() {
   const headerRight = document.querySelector('.header-right-inner');
   if (!headerRight) return;
-  // Avoid duplicate
   if (document.getElementById('quitBtn')) return;
   const quitBtn = document.createElement('button');
   quitBtn.id = 'quitBtn';
   quitBtn.className = 'btn-quit';
   quitBtn.textContent = '🚪 QUIT';
   quitBtn.style.marginLeft = '12px';
-  quitBtn.style.background = '#e55a1c';
-  quitBtn.style.border = 'none';
-  quitBtn.style.color = 'white';
+  quitBtn.style.background = 'transparent';
+  quitBtn.style.border = '1px solid var(--border)';
+  quitBtn.style.color = 'var(--text-dim)';
   quitBtn.style.padding = '6px 14px';
-  quitBtn.style.borderRadius = '6px';
+  quitBtn.style.borderRadius = '24px';
   quitBtn.style.cursor = 'pointer';
   quitBtn.style.fontFamily = "'JetBrains Mono', monospace";
-  quitBtn.style.fontSize = '0.7rem';
+  quitBtn.style.fontSize = '0.6rem';
+  quitBtn.style.fontWeight = '700';
+  quitBtn.style.letterSpacing = '0.08em';
+  quitBtn.style.transition = 'all 0.3s';
   quitBtn.addEventListener('click', function() {
     if (confirm('Are you sure you want to quit this session?')) {
       fetch('/api/quit_session', { method: 'POST', credentials: 'include' })
@@ -536,9 +512,46 @@ function createQuitButton() {
   headerRight.appendChild(quitBtn);
 }
 
-// ----- DOM ready -----
+// ================================================================
+// PRIZE SECTION – LOCK & TOKEN
+// ================================================================
+
+function updatePrizeLock() {
+  const solved = solvedStages || [];
+  const lock = document.getElementById('prizeLock');
+  const dots = document.querySelectorAll('.lock-dot');
+  const claimBtn = document.getElementById('claimBtn');
+  const tokenBox = document.getElementById('prizeTokenBox');
+
+  // Update dots
+  dots.forEach((dot, i) => {
+    dot.classList.remove('done', 'active');
+    if (solved.includes(i)) {
+      dot.classList.add('done');
+    } else if (solved.length === i) {
+      dot.classList.add('active');
+    }
+  });
+
+  // Check if all 4 stages are solved
+  const allSolved = solved.length === 4;
+
+  if (allSolved) {
+    if (lock) lock.classList.add('hidden');
+    if (claimBtn) claimBtn.disabled = false;
+  } else {
+    if (lock) lock.classList.remove('hidden');
+    if (claimBtn) claimBtn.disabled = true;
+    if (tokenBox) tokenBox.classList.remove('show');
+  }
+}
+
+// ================================================================
+// DOM READY – Everything in one place
+// ================================================================
+
 document.addEventListener('DOMContentLoaded', function() {
-  // Theme
+  // ---- THEME ----
   const themeBtn = document.getElementById('theme-btn');
   if (themeBtn) {
     themeBtn.addEventListener('click', function() {
@@ -547,7 +560,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   setTheme(getTheme());
 
-  // CTA scroll
+  // ---- CTA SCROLL ----
   const startBtn = document.getElementById('start-btn');
   if (startBtn) {
     startBtn.addEventListener('click', function(e) {
@@ -557,7 +570,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Progress nodes scroll
+  // ---- PROGRESS NODES SCROLL ----
   for (let i = 0; i < 4; i++) {
     const node = document.getElementById('ps-node-' + i);
     if (node) {
@@ -568,7 +581,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // Nav links smooth scroll
+  // ---- NAV LINKS SMOOTH SCROLL ----
   document.querySelectorAll('.header-nav-inner .nav-link').forEach(link => {
     link.addEventListener('click', function(e) {
       e.preventDefault();
@@ -580,6 +593,107 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // Check existing session
+  // ---- PRIZE CLAIM BUTTON ----
+  const claimBtn = document.getElementById('claimBtn');
+  const prizeResponse = document.getElementById('prizeResponse');
+  const tokenBox = document.getElementById('prizeTokenBox');
+  const tokenValue = document.getElementById('prizeTokenValue');
+  const copyBtn = document.getElementById('prizeCopyBtn');
+
+  if (claimBtn) {
+    const newClaimBtn = claimBtn.cloneNode(true);
+    claimBtn.parentNode.replaceChild(newClaimBtn, claimBtn);
+
+    newClaimBtn.addEventListener('click', async function() {
+      if (!prizeResponse) return;
+      if (solvedStages.length < 4) {
+        prizeResponse.innerHTML = '<div class="prize-error">⚠️ Complete all 4 stages first!</div>';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/claim', {
+          method: 'POST',
+          credentials: 'include'
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          if (tokenBox && tokenValue) {
+            tokenValue.textContent = data.qr_text || data.token || '—';
+            tokenBox.classList.add('show');
+          }
+
+          prizeResponse.innerHTML = `
+            <div class="prize-success">
+              <p>✅ ${data.message || 'Prize claimed successfully!'}</p>
+              <p style="margin-top:8px;font-size:0.75rem;color:var(--text-dim);">
+                Total winners: ${data.total_winners || '—'}
+              </p>
+              <p style="margin-top:4px;font-size:0.7rem;color:var(--text-dim);">
+                <em>Show this token to the organizer to claim your prize!</em>
+              </p>
+            </div>
+          `;
+
+          const counterEl = document.getElementById('counter');
+          if (counterEl && data.total_winners) {
+            counterEl.innerText = `🔍 ${data.total_winners} people have found the flaw so far`;
+          }
+          if (document.getElementById('stat-solvers') && data.total_winners) {
+            document.getElementById('stat-solvers').textContent = data.total_winners;
+          }
+        } else {
+          prizeResponse.innerHTML = `<div class="prize-error">❌ ${data.error || 'Failed to claim prize'}</div>`;
+        }
+      } catch (err) {
+        prizeResponse.innerHTML = `<div class="prize-error">❌ Error: ${err.message}</div>`;
+      }
+    });
+  }
+
+  // ---- COPY TOKEN ----
+  if (copyBtn && tokenValue) {
+    copyBtn.addEventListener('click', function() {
+      const text = tokenValue.textContent;
+      if (!text || text === '—') return;
+
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => {
+          copyBtn.classList.add('copied');
+          copyBtn.innerHTML = `
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            COPIED!
+          `;
+          setTimeout(() => {
+            copyBtn.classList.remove('copied');
+            copyBtn.innerHTML = `
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              COPY TOKEN
+            `;
+          }, 2500);
+        });
+      }
+    });
+  }
+
+  // ---- CHECK EXISTING SESSION ----
   checkExistingSession();
+});
+
+// ---- HEADER SCROLL EFFECT ----
+window.addEventListener('scroll', function() {
+  const header = document.querySelector('.game-header-inner');
+  if (header) {
+    if (window.scrollY > 10) {
+      header.classList.add('scrolled');
+    } else {
+      header.classList.remove('scrolled');
+    }
+  }
 });
