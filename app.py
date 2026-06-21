@@ -10,14 +10,12 @@ from routes import stage1_bp, stage2_bp, stage3_bp, stage4_bp, prize_bp
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this-in-production'
 
-# Register blueprints
 app.register_blueprint(stage1_bp, url_prefix='/api')
 app.register_blueprint(stage2_bp, url_prefix='/api')
 app.register_blueprint(stage3_bp, url_prefix='/api')
 app.register_blueprint(stage4_bp, url_prefix='/api')
 app.register_blueprint(prize_bp, url_prefix='/api')
 
-# ========== MAIN ROUTES ==========
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -44,9 +42,9 @@ def api_check_solved():
 @app.route('/api/hint/<int:stage>')
 def api_hint(stage):
     hints = {
-        1: "Try changing JWT algorithm to 'none' and remove the signature.",
+        1: "Try fetching /api/internal/notes with X-Admin: true first. Then cycle X-Forwarded-For IPs to bypass the rate limit.",
         2: "Use ?callback=anything to leak the flag from the JSONP response.",
-        3: "Just send a GET request to /api/stage3/flag.",
+        3: "The proxy respects X-Original-URL for routing, but the cache key uses the original URL path. What if you request /profile with X-Original-URL: /admin/flag?",
         4: "The sort parameter is vulnerable to blind SQL injection – use CASE WHEN to extract the flag from flag_table."
     }
     return jsonify({'hint': hints.get(stage, 'No hint available')})

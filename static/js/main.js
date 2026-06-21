@@ -95,7 +95,6 @@ async function checkSolved() {
     updatePrizeLock();
     updatePlayerProgress();
     
-    // Check if new stages were solved
     const newStages = solvedStages.filter(s => !prevSolved.includes(s));
     if (newStages.length > 0) {
       newStages.forEach(stage => {
@@ -115,10 +114,10 @@ function showStageAchievement(stageNum) {
   const emojis = ['🔓', '🛡️', '💎', '🚀'];
   const titles = ['STAGE 1 COMPLETE!', 'STAGE 2 COMPLETE!', 'STAGE 3 COMPLETE!', 'STAGE 4 COMPLETE!'];
   const subs = [
-    'You cracked the JWT None vulnerability!',
+    'You bypassed the rate limit and reset the password!',
     'You exploited the JSONP leak!',
-    'You blindsided the SQL injection!',
-    'You extracted the XXE flag!'
+    'You poisoned the cache and leaked the flag!',
+    'You exploited the blind SQL injection!'
   ];
   showToast(`${emojis[stageNum-1]} ${titles[stageNum-1]} ${subs[stageNum-1]}`, 'success');
 }
@@ -200,35 +199,35 @@ function createStageCard(stage, unlocked) {
   div.id = `stage${stage}`;
 
   const titles = {
-    1: '01 · Password Reset (JWT None)',
+    1: '01 · Forgot Password (Rate Limit Bypass)',
     2: '02 · API Gateway (JSONP)',
-    3: '03 · Easy Flag (placeholder)',
+    3: '03 · Profile Viewer (Cache Poisoning)',
     4: '04 · Product Sorting (Blind SQLi)'
   };
   const descriptions = {
-    1: '<code>POST /api/stage1/forgot</code> – request a reset token.<br><code>POST /api/stage1/reset</code> – submit token for verification.',
+    1: '<code>POST /api/stage1/forgot</code> – answer the security question.<br>You have 3 attempts per IP. Can you bypass the limit?<br><code>GET /api/internal/notes</code> – hidden endpoint with <code>X-Admin: true</code>',
     2: '<code>GET /api/stage2/flag</code> – fetch something? Try different parameters.<br><code>POST /api/stage2/submit</code> – submit what you find.',
-    3: '<code>GET /api/stage3/flag</code> – get the flag directly.',
+    3: '<code>GET /api/stage3/profile</code> – view your profile.<br>Try using <code>X-Original-URL</code> to poison the cache.',
     4: '<code>GET /api/stage4/products?sort=name</code> – blind SQL injection in ORDER BY.<br><code>POST /api/stage4/submit</code> – submit the extracted flag.'
   };
   const defaultMethods = {1:'POST',2:'GET',3:'GET',4:'POST'};
   const defaultUrls = {
     1:'/api/stage1/forgot',
     2:'/api/stage2/flag',
-    3:'/api/stage3/flag',
+    3:'/api/stage3/profile',
     4:'/api/stage4/products?sort=name'
   };
   const defaultHeaders = {
     1:'{"Content-Type": "application/json"}',
     2:'{"Content-Type": "application/json"}',
-    3:'{"Content-Type": "application/json"}',
-    4:'{"Content-Type": "multipart/form-data"}'
+    3:'{"Content-Type": "application/json", "X-Original-URL": "/admin/flag"}',
+    4:'{"Content-Type": "application/json"}'
   };
   const defaultBodies = {
-    1:'{"email": "admin@ctf.local"}',
+    1:'{"answer": ""}',
     2:'{}',
     3:'{}',
-    4:''
+    4:'{}'
   };
 
   div.innerHTML = `
@@ -327,7 +326,6 @@ window.getHint = async function(stage) {
 function calculateScore(player) {
   const solved = player.solved_count || 0;
   const totalTime = player.elapsed_seconds || 0;
-  // Time limits per stage (in seconds): 10, 25, 30, 20 minutes
   const stageLimits = [600, 1500, 1800, 1200];
   let score = solved * 500;
   if (solved === 4 && totalTime > 0) {
