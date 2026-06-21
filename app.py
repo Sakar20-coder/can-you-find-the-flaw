@@ -46,8 +46,8 @@ def api_hint(stage):
     hints = {
         1: "Try changing JWT algorithm to 'none' and remove the signature.",
         2: "Use ?callback=anything to leak the flag from the JSONP response.",
-        3: "Blind boolean injection in ORDER BY clause – use CASE WHEN.",
-        4: "Upload SVG with XXE payload to read ../instance/flag.txt"
+        3: "Just send a GET request to /api/stage3/flag.",
+        4: "The sort parameter is vulnerable to blind SQL injection – use CASE WHEN to extract the flag from flag_table."
     }
     return jsonify({'hint': hints.get(stage, 'No hint available')})
 

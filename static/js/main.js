@@ -98,13 +98,11 @@ async function checkSolved() {
     // Check if new stages were solved
     const newStages = solvedStages.filter(s => !prevSolved.includes(s));
     if (newStages.length > 0) {
-      // Show achievement for each new stage
       newStages.forEach(stage => {
         showStageAchievement(stage + 1);
       });
     }
     
-    // Check if all 4 are solved (first time)
     if (solvedStages.length === 4 && prevSolved.length < 4) {
       setTimeout(() => showFullAchievement(), 800);
     }
@@ -112,8 +110,6 @@ async function checkSolved() {
     console.error('Check solved failed', err);
   }
 }
-
-// ===== ACHIEVEMENT SYSTEM =====
 
 function showStageAchievement(stageNum) {
   const emojis = ['🔓', '🛡️', '💎', '🚀'];
@@ -124,7 +120,6 @@ function showStageAchievement(stageNum) {
     'You blindsided the SQL injection!',
     'You extracted the XXE flag!'
   ];
-  
   showToast(`${emojis[stageNum-1]} ${titles[stageNum-1]} ${subs[stageNum-1]}`, 'success');
 }
 
@@ -137,12 +132,10 @@ function showFullAchievement() {
   const rank = document.getElementById('achPlayerRank');
   const total = document.getElementById('achTotalSolvers');
   
-  // Get player's rank
   const sorted = sortPlayers(allPlayers);
   const playerRank = sorted.findIndex(p => p.callsign === callsign) + 1;
   const totalSolvers = sorted.length;
   
-  // Random celebration emojis
   const celebrationEmojis = ['🎉', '🎊', '👏', '🏆', '⭐', '🔥', '💪', '🚀'];
   const randomEmoji = celebrationEmojis[Math.floor(Math.random() * celebrationEmojis.length)];
   
@@ -153,7 +146,6 @@ function showFullAchievement() {
   rank.textContent = `#${playerRank}`;
   total.textContent = totalSolvers;
   
-  // Add confetti
   const container = document.getElementById('confettiContainer');
   container.innerHTML = '';
   const colors = ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff', '#5f27cd', '#1dd1a1'];
@@ -173,7 +165,6 @@ function showFullAchievement() {
   
   overlay.classList.add('show');
   
-  // Speak it
   if (window.speechSynthesis) {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(
@@ -185,10 +176,8 @@ function showFullAchievement() {
   }
 }
 
-// Close achievement overlay
 document.getElementById('achievementBtn')?.addEventListener('click', function() {
   document.getElementById('achievementOverlay').classList.remove('show');
-  // Scroll to prize section
   document.getElementById('prize').scrollIntoView({ behavior: 'smooth' });
 });
 
@@ -213,21 +202,21 @@ function createStageCard(stage, unlocked) {
   const titles = {
     1: '01 · Password Reset (JWT None)',
     2: '02 · API Gateway (JSONP)',
-    3: '03 · Product Listing (Blind SQLi)',
-    4: '04 · Avatar Upload (XXE)'
+    3: '03 · Easy Flag (placeholder)',
+    4: '04 · Product Sorting (Blind SQLi)'
   };
   const descriptions = {
     1: '<code>POST /api/stage1/forgot</code> – request a reset token.<br><code>POST /api/stage1/reset</code> – submit token for verification.',
     2: '<code>GET /api/stage2/flag</code> – fetch something? Try different parameters.<br><code>POST /api/stage2/submit</code> – submit what you find.',
-    3: '<code>GET /api/stage3/products?sort=name</code> – sort product list.<br><code>POST /api/stage3/submit</code> – submit the hidden secret.',
-    4: '<code>POST /api/stage4/upload</code> – upload an avatar (SVG).<br><code>POST /api/stage4/submit</code> – submit the flag after extraction.'
+    3: '<code>GET /api/stage3/flag</code> – get the flag directly.',
+    4: '<code>GET /api/stage4/products?sort=name</code> – blind SQL injection in ORDER BY.<br><code>POST /api/stage4/submit</code> – submit the extracted flag.'
   };
   const defaultMethods = {1:'POST',2:'GET',3:'GET',4:'POST'};
   const defaultUrls = {
     1:'/api/stage1/forgot',
     2:'/api/stage2/flag',
-    3:'/api/stage3/products?sort=name',
-    4:'/api/stage4/upload'
+    3:'/api/stage3/flag',
+    4:'/api/stage4/products?sort=name'
   };
   const defaultHeaders = {
     1:'{"Content-Type": "application/json"}',
@@ -276,7 +265,6 @@ function createStageCard(stage, unlocked) {
   return div;
 }
 
-// Expose sendRequest and getHint globally
 window.sendRequest = async function(stage) {
   const method = document.getElementById(`method${stage}`).value;
   let url = document.getElementById(`url${stage}`).value;
@@ -306,7 +294,13 @@ window.sendRequest = async function(stage) {
     respEl.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
     if (data.solved === true) {
       showToast(`🎉 Flag found: ${data.flag}`, 'success');
+      if (!callsign) {
+        const csRes = await fetch('/api/check_solved', { credentials: 'include' });
+        const csData = await csRes.json();
+        if (csData.callsign) callsign = csData.callsign;
+      }
       await checkSolved();
+      fetchLeaderboard();
     }
     if (data.total_winners) {
       document.getElementById('counter').innerText = `🔍 ${data.total_winners} people have found the flaw so far`;
@@ -328,15 +322,36 @@ window.getHint = async function(stage) {
   }
 };
 
-// ======================== LEADERBOARD – SORTED BY SOLVED + TIME ========================
+// ======================== SCORING (per‑stage time limits) ========================
+
+function calculateScore(player) {
+  const solved = player.solved_count || 0;
+  const totalTime = player.elapsed_seconds || 0;
+  // Time limits per stage (in seconds): 10, 25, 30, 20 minutes
+  const stageLimits = [600, 1500, 1800, 1200];
+  let score = solved * 500;
+  if (solved === 4 && totalTime > 0) {
+    const totalLimit = stageLimits.reduce((a, b) => a + b, 0);
+    const ratio = Math.max(0, Math.min(1, 1 - (totalTime / totalLimit)));
+    const bonus = Math.round(ratio * 500);
+    score += bonus;
+  } else if (solved > 0 && solved < 4) {
+    const avgTime = totalTime / solved;
+    const avgLimit = stageLimits.slice(0, solved).reduce((a, b) => a + b, 0) / solved;
+    const ratio = Math.max(0, Math.min(1, 1 - (avgTime / avgLimit)));
+    const bonus = Math.round(ratio * 200);
+    score += bonus;
+  }
+  return score;
+}
+
+// ======================== LEADERBOARD ========================
 
 function sortPlayers(players) {
   return [...players].sort((a, b) => {
-    // First by solved count (descending)
     if (a.solved_count !== b.solved_count) {
       return b.solved_count - a.solved_count;
     }
-    // Then by elapsed time (ascending - faster is better)
     return (a.elapsed_seconds || 0) - (b.elapsed_seconds || 0);
   });
 }
@@ -360,7 +375,6 @@ function renderLeaderboard(players) {
   
   const sorted = sortPlayers(players);
   
-  // Update podium (Top 3)
   const podiumPlayers = sorted.slice(0, 3);
   const podiumSlots = [
     { id: 'podium-1' },
@@ -386,27 +400,17 @@ function renderLeaderboard(players) {
     }
   });
   
-  // If no players
   if (!sorted.length) {
     tbody.innerHTML = '<div class="lb-empty">No solvers yet. Be the first.</div>';
     document.getElementById('lbPageInfo').innerHTML = 'Showing <strong>0</strong> entries';
     return;
   }
   
-  // Pagination - skip top 3 for table (they're shown on podium)
-  const tablePlayers = sorted.slice(3);
   const start = lbPage * LB_PER_PAGE;
-  const slice = tablePlayers.slice(start, start + LB_PER_PAGE);
-  const totalPages = Math.ceil(tablePlayers.length / LB_PER_PAGE);
-  
-  if (!slice.length) {
-    tbody.innerHTML = '<div class="lb-empty">No more players to show</div>';
-    document.getElementById('lbPageInfo').innerHTML = `Showing <strong>${start + 1}</strong> – <strong>${start}</strong> of <strong>${tablePlayers.length}</strong> entries`;
-    return;
-  }
+  const slice = sorted.slice(start, start + LB_PER_PAGE);
+  const totalPages = Math.ceil(sorted.length / LB_PER_PAGE);
   
   tbody.innerHTML = slice.map((p) => {
-    // Rank is actual rank (including top 3)
     const rank = sorted.indexOf(p) + 1;
     let rankClass = 'other';
     let rankDisplay = `#${rank}`;
@@ -430,7 +434,6 @@ function renderLeaderboard(players) {
     </div>`;
   }).join('');
   
-  // Pagination buttons
   const btnWrap = document.getElementById('lbPageBtns');
   if (totalPages <= 1) {
     btnWrap.innerHTML = '';
@@ -443,9 +446,8 @@ function renderLeaderboard(players) {
     btnWrap.innerHTML = btns;
   }
   
-  // Info bar - showing entries from table (excluding top 3)
-  const startEntry = start + 4; // +4 because rank 1-3 are on podium, rank 4 is first in table
-  const endEntry = Math.min(start + LB_PER_PAGE + 3, sorted.length);
+  const startEntry = start + 1;
+  const endEntry = Math.min(start + LB_PER_PAGE, sorted.length);
   document.getElementById('lbPageInfo').innerHTML = `
     Showing <strong>${startEntry}</strong> – <strong>${endEntry}</strong> of <strong>${sorted.length}</strong> entries
   `;
@@ -470,7 +472,12 @@ window.lbGo = function(p) {
 
 async function updatePlayerProgress() {
   if (!callsign) return;
-  const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
+  let elapsedSec = 0;
+  try {
+    const statusRes = await fetch('/api/session_status', { credentials: 'include' });
+    const statusData = await statusRes.json();
+    if (statusData.elapsed !== undefined) elapsedSec = statusData.elapsed;
+  } catch(e) {}
   try {
     await fetch('/api/update_progress', {
       method: 'POST',
@@ -628,7 +635,6 @@ function updateProgress() {
   }
 }
 
-// Theme toggle
 function setTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
   localStorage.setItem('ctf_theme', t);
@@ -640,8 +646,6 @@ function setTheme(t) {
   }
 }
 function getTheme() { return localStorage.getItem('ctf_theme') || 'dark'; }
-
-// ===== ENHANCED QUIT BUTTON =====
 
 function createQuitButton() {
   const headerRight = document.querySelector('.header-right-inner');
@@ -673,7 +677,6 @@ function showQuitDialog() {
   const timeSpent = document.getElementById('quitTimeSpent');
   const affirmation = document.getElementById('quitAffirmation');
   
-  // Get elapsed time from server (same as header timer)
   fetch('/api/session_status', { credentials: 'include' })
     .then(res => res.json())
     .then(data => {
@@ -683,7 +686,6 @@ function showQuitDialog() {
         const secs = String(data.elapsed % 60).padStart(2,'0');
         timeSpent.textContent = `${hrs}:${mins}:${secs}`;
       } else {
-        // Fallback to local calculation
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
         const hrs = String(Math.floor(elapsed / 3600)).padStart(2,'0');
         const mins = String(Math.floor((elapsed % 3600) / 60)).padStart(2,'0');
@@ -692,7 +694,6 @@ function showQuitDialog() {
       }
     })
     .catch(() => {
-      // Fallback if API fails
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       const hrs = String(Math.floor(elapsed / 3600)).padStart(2,'0');
       const mins = String(Math.floor((elapsed % 3600) / 60)).padStart(2,'0');
@@ -700,17 +701,11 @@ function showQuitDialog() {
       timeSpent.textContent = `${hrs}:${mins}:${secs}`;
     });
   
-  // Update stages solved
   stagesSolved.textContent = solvedStages.length;
-  
-  // Hide any previous affirmation
   affirmation.style.display = 'none';
-  
-  // Show the overlay
   overlay.classList.add('show');
 }
 
-// Quit dialog events
 document.getElementById('quitCancel')?.addEventListener('click', function() {
   document.getElementById('quitOverlay').classList.remove('show');
 });
@@ -737,7 +732,6 @@ document.getElementById('quitConfirm')?.addEventListener('click', function() {
   affirmation.textContent = message;
   affirmation.style.display = 'block';
   
-  // After affirmation, quit
   setTimeout(() => {
     fetch('/api/quit_session', { method: 'POST', credentials: 'include' })
       .then(res => res.json())
@@ -747,7 +741,7 @@ document.getElementById('quitConfirm')?.addEventListener('click', function() {
           window.location.href = data.redirect;
         }
       });
-  }, 3000);
+  }, 2000);
 });
 
 // ================================================================
@@ -787,7 +781,6 @@ function updatePrizeLock() {
 // ================================================================
 
 document.addEventListener('DOMContentLoaded', function() {
-  // Theme
   const themeBtn = document.getElementById('theme-btn');
   if (themeBtn) {
     themeBtn.addEventListener('click', function() {
@@ -796,7 +789,6 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   setTheme(getTheme());
 
-  // CTA scroll
   const startBtn = document.getElementById('start-btn');
   if (startBtn) {
     startBtn.addEventListener('click', function(e) {
@@ -806,7 +798,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Progress nodes scroll
   for (let i = 0; i < 4; i++) {
     const node = document.getElementById('ps-node-' + i);
     if (node) {
@@ -817,7 +808,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // Nav links
   document.querySelectorAll('.header-nav-inner .nav-link').forEach(link => {
     link.addEventListener('click', function(e) {
       e.preventDefault();
@@ -829,7 +819,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // Prize claim
   const claimBtn = document.getElementById('claimBtn');
   const prizeResponse = document.getElementById('prizeResponse');
   const tokenBox = document.getElementById('prizeTokenBox');
@@ -888,7 +877,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Copy token
   if (copyBtn && tokenValue) {
     copyBtn.addEventListener('click', function() {
       const text = tokenValue.textContent;
@@ -921,7 +909,6 @@ document.addEventListener('DOMContentLoaded', function() {
   checkExistingSession();
 });
 
-// ---- HEADER SCROLL EFFECT ----
 window.addEventListener('scroll', function() {
   const header = document.querySelector('.game-header-inner');
   if (header) {
@@ -931,264 +918,4 @@ window.addEventListener('scroll', function() {
       header.classList.remove('scrolled');
     }
   }
-});
-// ================================================================
-// LEADERBOARD – SORTING & PODIUM (ADD THIS)
-// ================================================================
-
-function sortPlayers(players) {
-  return [...players].sort((a, b) => {
-    if (a.solved_count !== b.solved_count) {
-      return b.solved_count - a.solved_count;
-    }
-    return (a.elapsed_seconds || 0) - (b.elapsed_seconds || 0);
-  });
-}
-
-function calculateScore(player) {
-  const solved = player.solved_count || 0;
-  const time = player.elapsed_seconds || 0;
-  const stageScore = solved * 500;
-  let timeBonus = 0;
-  if (solved > 0 && time > 0) {
-    const avgTimePerStage = time / solved;
-    const maxTime = 3600;
-    const ratio = Math.max(0, 1 - (avgTimePerStage / maxTime));
-    timeBonus = Math.round(50 + (ratio * 450));
-  }
-  return stageScore + timeBonus;
-}
-
-// REPLACE your existing renderLeaderboard with this
-function renderLeaderboard(players) {
-  const tbody = document.getElementById('lbBody');
-  if (!tbody) return;
-  
-  const sorted = sortPlayers(players);
-  
-  // Update podium (Top 3)
-  const podiumPlayers = sorted.slice(0, 3);
-  const podiumSlots = [
-    { id: 'podium-1' },
-    { id: 'podium-2' },
-    { id: 'podium-3' }
-  ];
-  
-  podiumSlots.forEach((slot, index) => {
-    const el = document.getElementById(slot.id);
-    if (!el) return;
-    const player = podiumPlayers[index];
-    if (player) {
-      el.querySelector('.podium-handle').textContent = player.callsign || '—';
-      el.querySelector('.podium-stages').textContent = `${player.solved_count || 0}/4`;
-      el.querySelector('.podium-time').textContent = secondsToHms(player.elapsed_seconds);
-      el.querySelector('.podium-score').textContent = calculateScore(player);
-      el.style.display = 'flex';
-    } else {
-      el.querySelector('.podium-handle').textContent = '—';
-      el.querySelector('.podium-stages').textContent = '0/4';
-      el.querySelector('.podium-time').textContent = '—';
-      el.querySelector('.podium-score').textContent = '0';
-    }
-  });
-  
-  if (!sorted.length) {
-    tbody.innerHTML = '<div class="lb-empty">No solvers yet. Be the first.</div>';
-    document.getElementById('lbPageInfo').innerHTML = 'Showing <strong>0</strong> entries';
-    return;
-  }
-  
-  const start = lbPage * LB_PER_PAGE;
-  const slice = sorted.slice(start, start + LB_PER_PAGE);
-  const totalPages = Math.ceil(sorted.length / LB_PER_PAGE);
-  
-  tbody.innerHTML = slice.map((p) => {
-    const rank = sorted.indexOf(p) + 1;
-    let rankClass = 'other';
-    let rankDisplay = `#${rank}`;
-    if (rank === 1) { rankClass = 'gold'; rankDisplay = '🥇'; }
-    else if (rank === 2) { rankClass = 'silver'; rankDisplay = '🥈'; }
-    else if (rank === 3) { rankClass = 'bronze'; rankDisplay = '🥉'; }
-    
-    const isMe = (p.callsign === callsign);
-    const stageDots = [1,2,3,4].map(n => {
-      return `<div class="lb-stage-dot ${p.solved_count >= n ? 'done' : ''}">${n}</div>`;
-    }).join('');
-    const timeStr = secondsToHms(p.elapsed_seconds);
-    const score = calculateScore(p);
-    
-    return `<div class="lb-table-row ${isMe ? 'my-row' : ''}">
-      <span class="lb-rank ${rankClass}">${rankDisplay}</span>
-      <span class="lb-handle">${escapeHtml(p.callsign)}${isMe ? '<span class="you-tag">YOU</span>' : ''}</span>
-      <div class="lb-stages">${stageDots}</div>
-      <span class="lb-time">${timeStr}</span>
-      <span class="lb-score">${score}</span>
-    </div>`;
-  }).join('');
-  
-  // Pagination buttons
-  const btnWrap = document.getElementById('lbPageBtns');
-  if (totalPages <= 1) {
-    btnWrap.innerHTML = '';
-  } else {
-    let btns = `<button class="lb-page-btn" onclick="lbGo(${lbPage-1})" ${lbPage===0?'disabled':''}>‹</button>`;
-    for (let p=0; p<totalPages; p++) {
-      btns += `<button class="lb-page-btn ${p===lbPage?'active':''}" onclick="lbGo(${p})">${p+1}</button>`;
-    }
-    btns += `<button class="lb-page-btn" onclick="lbGo(${lbPage+1})" ${lbPage===totalPages-1?'disabled':''}>›</button>`;
-    btnWrap.innerHTML = btns;
-  }
-  
-  const startEntry = start + 1;
-  const endEntry = Math.min(start + LB_PER_PAGE, sorted.length);
-  document.getElementById('lbPageInfo').innerHTML = `
-    Showing <strong>${startEntry}</strong> – <strong>${endEntry}</strong> of <strong>${sorted.length}</strong> entries
-  `;
-}
-
-// ================================================================
-// ACHIEVEMENT SYSTEM (ADD THIS)
-// ================================================================
-
-function showFullAchievement() {
-  const overlay = document.getElementById('achievementOverlay');
-  const title = document.getElementById('achievementTitle');
-  const sub = document.getElementById('achievementSub');
-  const emoji = document.getElementById('achievementEmoji');
-  const stagesSolved = document.getElementById('achStagesSolved');
-  const rank = document.getElementById('achPlayerRank');
-  const total = document.getElementById('achTotalSolvers');
-  
-  const sorted = sortPlayers(allPlayers);
-  const playerRank = sorted.findIndex(p => p.callsign === callsign) + 1;
-  const totalSolvers = sorted.length;
-  
-  const celebrationEmojis = ['🎉', '🎊', '👏', '🏆', '⭐', '🔥', '💪', '🚀'];
-  const randomEmoji = celebrationEmojis[Math.floor(Math.random() * celebrationEmojis.length)];
-  
-  emoji.textContent = randomEmoji;
-  title.textContent = '🏆 YOU DID IT!';
-  sub.textContent = `You're the #${playerRank} person to solve all 4 challenges!`;
-  stagesSolved.textContent = '4';
-  rank.textContent = `#${playerRank}`;
-  total.textContent = totalSolvers;
-  
-  // Confetti
-  const container = document.getElementById('confettiContainer');
-  container.innerHTML = '';
-  const colors = ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff', '#5f27cd', '#1dd1a1'];
-  for (let i = 0; i < 40; i++) {
-    const confetti = document.createElement('div');
-    confetti.className = 'confetti';
-    confetti.style.left = Math.random() * 100 + '%';
-    confetti.style.top = '-10px';
-    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
-    confetti.style.width = (Math.random() * 8 + 4) + 'px';
-    confetti.style.height = (Math.random() * 8 + 4) + 'px';
-    confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
-    confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
-    confetti.style.animationDelay = (Math.random() * 2) + 's';
-    container.appendChild(confetti);
-  }
-  
-  overlay.classList.add('show');
-  
-  if (window.speechSynthesis) {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(
-      `Congratulations ${callsign}! You solved all 4 challenges! You are number ${playerRank} to complete the arena!`
-    );
-    utterance.rate = 0.9;
-    utterance.pitch = 1.1;
-    setTimeout(() => window.speechSynthesis.speak(utterance), 300);
-  }
-}
-
-// ================================================================
-// QUIT DIALOG – FIXED TIMER (ADD THIS)
-// ================================================================
-
-function showQuitDialog() {
-  const overlay = document.getElementById('quitOverlay');
-  const stagesSolved = document.getElementById('quitStagesSolved');
-  const timeSpent = document.getElementById('quitTimeSpent');
-  const affirmation = document.getElementById('quitAffirmation');
-  
-  // Get elapsed time from server (same as header timer)
-  fetch('/api/session_status', { credentials: 'include' })
-    .then(res => res.json())
-    .then(data => {
-      if (data.elapsed !== undefined) {
-        const hrs = String(Math.floor(data.elapsed / 3600)).padStart(2,'0');
-        const mins = String(Math.floor((data.elapsed % 3600) / 60)).padStart(2,'0');
-        const secs = String(data.elapsed % 60).padStart(2,'0');
-        timeSpent.textContent = `${hrs}:${mins}:${secs}`;
-      } else {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        const hrs = String(Math.floor(elapsed / 3600)).padStart(2,'0');
-        const mins = String(Math.floor((elapsed % 3600) / 60)).padStart(2,'0');
-        const secs = String(elapsed % 60).padStart(2,'0');
-        timeSpent.textContent = `${hrs}:${mins}:${secs}`;
-      }
-    })
-    .catch(() => {
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      const hrs = String(Math.floor(elapsed / 3600)).padStart(2,'0');
-      const mins = String(Math.floor((elapsed % 3600) / 60)).padStart(2,'0');
-      const secs = String(elapsed % 60).padStart(2,'0');
-      timeSpent.textContent = `${hrs}:${mins}:${secs}`;
-    });
-  
-  stagesSolved.textContent = solvedStages.length;
-  affirmation.style.display = 'none';
-  overlay.classList.add('show');
-}
-
-// ================================================================
-// EVENT LISTENERS FOR NEW ELEMENTS (ADD THIS)
-// ================================================================
-
-// Achievement button
-document.getElementById('achievementBtn')?.addEventListener('click', function() {
-  document.getElementById('achievementOverlay').classList.remove('show');
-  document.getElementById('prize').scrollIntoView({ behavior: 'smooth' });
-});
-
-// Quit dialog events
-document.getElementById('quitCancel')?.addEventListener('click', function() {
-  document.getElementById('quitOverlay').classList.remove('show');
-});
-
-document.getElementById('quitConfirm')?.addEventListener('click', function() {
-  const affirmation = document.getElementById('quitAffirmation');
-  const solved = solvedStages.length;
-  const total = 4;
-  
-  let message = '';
-  const emojis = ['💪', '🔥', '🌟', '👏', '🎯', '🚀'];
-  const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-  
-  if (solved === 0) {
-    message = `${randomEmoji} Every master was once a beginner. Keep going!`;
-  } else if (solved < 3) {
-    message = `${randomEmoji} You've solved ${solved}/${total}. That's solid progress! Come back stronger!`;
-  } else if (solved === 3) {
-    message = `${randomEmoji} So close! Just 1 more stage to go! You got this!`;
-  } else if (solved === 4) {
-    message = `🏆 LEGEND! You conquered all 4 stages! Go claim your prize! 🏆`;
-  }
-  
-  affirmation.textContent = message;
-  affirmation.style.display = 'block';
-  
-  setTimeout(() => {
-    fetch('/api/quit_session', { method: 'POST', credentials: 'include' })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === 'quit') {
-          document.getElementById('quitOverlay').classList.remove('show');
-          window.location.href = data.redirect;
-        }
-      });
-  }, 2000); // Adjust this value to change how long the affirmation shows
 });
