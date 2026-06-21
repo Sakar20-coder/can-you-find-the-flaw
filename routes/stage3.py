@@ -3,26 +3,26 @@ from .utils import mark_solved
 
 stage3_bp = Blueprint('stage3', __name__)
 
-# Simulated reverse proxy cache: stores responses under original URL path
+# Simulated reverse proxy cache
 cache = {}
 
 @stage3_bp.route('/stage3/profile', methods=['GET'])
 def profile():
-    # Simulate proxy behaviour: X-Original-URL rewrites the path
     original_url = request.headers.get('X-Original-URL')
     requested_path = request.path
 
-    # If X-Original-URL is present, the proxy rewrites the request
+    # If X-Original-URL is present, treat as a proxy rewrite
     if original_url:
         if original_url == '/admin/flag':
-            # Backend returns flag (proxy's internal IP is trusted)
             flag = 'flag{cache_poisoning_via_x_original_url}'
-            # Cache the response under the *original* URL path (not rewritten)
+            # Cache the response under the original path
             cache[requested_path] = {
                 'solved': True,
                 'flag': flag,
                 'next_stage': 4
             }
+            # ✅ CRITICAL: Mark stage 3 as solved on the server
+            mark_solved(3)
             return jsonify({
                 'solved': True,
                 'flag': flag,
@@ -31,9 +31,9 @@ def profile():
         else:
             return jsonify({'error': 'Invalid internal path'}), 403
 
-    # Normal request: check if cache exists for this path
+    # Normal request: check cache first
     if requested_path in cache:
         return jsonify(cache[requested_path])
 
-    # If not cached, return normal profile
+    # Default profile (not cached)
     return jsonify({'profile': {'username': 'guest', 'email': 'guest@example.com'}})
