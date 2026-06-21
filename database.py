@@ -26,7 +26,6 @@ def init_db():
             )
         ''')
         conn.execute('INSERT OR IGNORE INTO global_counter (id, total) VALUES (1, 0)')
-        # Leaderboard table with all fields
         conn.execute('''
             CREATE TABLE IF NOT EXISTS leaderboard (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -60,7 +59,24 @@ def get_total_winners():
         row = conn.execute('SELECT total FROM global_counter WHERE id = 1').fetchone()
         return row['total'] if row else 0
 
-# ---------- NEW SESSION FUNCTIONS ----------
+def create_or_update_session(callsign, start=True):
+    with get_db() as conn:
+        if start:
+            now = datetime.now().isoformat()
+            existing = conn.execute('SELECT callsign FROM leaderboard WHERE callsign = ?', (callsign,)).fetchone()
+            if existing:
+                conn.execute('''
+                    UPDATE leaderboard
+                    SET session_start = ?, status = 'ACTIVE'
+                    WHERE callsign = ?
+                ''', (now, callsign))
+            else:
+                conn.execute('''
+                    INSERT INTO leaderboard (callsign, session_start, status, solved_stages, solved_count, score, elapsed_seconds)
+                    VALUES (?, ?, 'ACTIVE', '[]', 0, 0, 0)
+                ''', (callsign, now))
+        conn.commit()
+
 def quit_session(callsign):
     with get_db() as conn:
         now = datetime.now().isoformat()
@@ -89,7 +105,6 @@ def get_player_by_callsign(callsign):
 def claim_prize_db(callsign):
     with get_db() as conn:
         now = datetime.now().isoformat()
-        # Update status and claimed_at, compute completion time
         row = conn.execute('SELECT session_start FROM leaderboard WHERE callsign = ?', (callsign,)).fetchone()
         if row and row['session_start']:
             start = datetime.fromisoformat(row['session_start'])
@@ -111,8 +126,7 @@ def update_player_progress_db(callsign, solved_stages, elapsed_seconds):
     with get_db() as conn:
         solved_list = solved_stages if isinstance(solved_stages, list) else []
         solved_count = len(solved_list)
-        # Also compute score (e.g., 100 per stage)
-        score = solved_count * 100
+        score = solved_count * 500  # base points per stage
         conn.execute('''
             UPDATE leaderboard
             SET solved_stages = ?, solved_count = ?, score = ?, elapsed_seconds = ?, updated_at = CURRENT_TIMESTAMP
@@ -120,8 +134,6 @@ def update_player_progress_db(callsign, solved_stages, elapsed_seconds):
         ''', (json.dumps(solved_list), solved_count, score, elapsed_seconds, callsign))
         conn.commit()
 
-# Initialize
-init_db()
 def get_leaderboard():
     with get_db() as conn:
         rows = conn.execute('''
@@ -132,21 +144,5 @@ def get_leaderboard():
             ORDER BY score DESC, solved_count DESC, completion_time ASC NULLS LAST
         ''').fetchall()
         return [dict(row) for row in rows]
-def create_or_update_session(callsign, start=True):
-    with get_db() as conn:
-        if start:
-            now = datetime.now().isoformat()
-            existing = conn.execute('SELECT callsign FROM leaderboard WHERE callsign = ?', (callsign,)).fetchone()
-            if existing:
-                # Keep solved data, only update session_start and status
-                conn.execute('''
-                    UPDATE leaderboard
-                    SET session_start = ?, status = 'ACTIVE'
-                    WHERE callsign = ?
-                ''', (now, callsign))
-            else:
-                conn.execute('''
-                    INSERT INTO leaderboard (callsign, session_start, status, solved_stages, solved_count, score, elapsed_seconds)
-                    VALUES (?, ?, 'ACTIVE', '[]', 0, 0, 0)
-                ''', (callsign, now))
-        conn.commit()
+
+init_db()

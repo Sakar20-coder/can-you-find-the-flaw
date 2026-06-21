@@ -53,14 +53,14 @@ function updateServerTimer() {
     .then(res => res.json())
     .then(data => {
       if (data.elapsed !== undefined) {
-        const hrs = String(Math.floor(data.elapsed / 3600)).padStart(2,'0');
-        const mins = String(Math.floor((data.elapsed % 3600) / 60)).padStart(2,'0');
-        const secs = String(data.elapsed % 60).padStart(2,'0');
+        const hrs = String(Math.floor(data.elapsed / 3600)).padStart(2, '0');
+        const mins = String(Math.floor((data.elapsed % 3600) / 60)).padStart(2, '0');
+        const secs = String(data.elapsed % 60).padStart(2, '0');
         const timerSpan = document.getElementById('timerValue');
         if (timerSpan) timerSpan.innerText = `${hrs}:${mins}:${secs}`;
       }
     })
-    .catch(() => {});
+    .catch(() => { });
 }
 
 function startGlobalTimer() {
@@ -94,14 +94,14 @@ async function checkSolved() {
     updateProgress();
     updatePrizeLock();
     updatePlayerProgress();
-    
+
     const newStages = solvedStages.filter(s => !prevSolved.includes(s));
     if (newStages.length > 0) {
       newStages.forEach(stage => {
         showStageAchievement(stage + 1);
       });
     }
-    
+
     if (solvedStages.length === 4 && prevSolved.length < 4) {
       setTimeout(() => showFullAchievement(), 800);
     }
@@ -119,7 +119,7 @@ function showStageAchievement(stageNum) {
     'You poisoned the cache and leaked the flag!',
     'You exploited the blind SQL injection!'
   ];
-  showToast(`${emojis[stageNum-1]} ${titles[stageNum-1]} ${subs[stageNum-1]}`, 'success');
+  showToast(`${emojis[stageNum - 1]} ${titles[stageNum - 1]} ${subs[stageNum - 1]}`, 'success');
 }
 
 function showFullAchievement() {
@@ -130,21 +130,21 @@ function showFullAchievement() {
   const stagesSolved = document.getElementById('achStagesSolved');
   const rank = document.getElementById('achPlayerRank');
   const total = document.getElementById('achTotalSolvers');
-  
+
   const sorted = sortPlayers(allPlayers);
   const playerRank = sorted.findIndex(p => p.callsign === callsign) + 1;
   const totalSolvers = sorted.length;
-  
+
   const celebrationEmojis = ['🎉', '🎊', '👏', '🏆', '⭐', '🔥', '💪', '🚀'];
   const randomEmoji = celebrationEmojis[Math.floor(Math.random() * celebrationEmojis.length)];
-  
+
   emoji.textContent = randomEmoji;
   title.textContent = '🏆 YOU DID IT!';
   sub.textContent = `You're the #${playerRank} person to solve all 4 challenges!`;
   stagesSolved.textContent = '4';
   rank.textContent = `#${playerRank}`;
   total.textContent = totalSolvers;
-  
+
   const container = document.getElementById('confettiContainer');
   container.innerHTML = '';
   const colors = ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff', '#5f27cd', '#1dd1a1'];
@@ -161,9 +161,9 @@ function showFullAchievement() {
     confetti.style.animationDelay = (Math.random() * 2) + 's';
     container.appendChild(confetti);
   }
-  
+
   overlay.classList.add('show');
-  
+
   if (window.speechSynthesis) {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(
@@ -175,7 +175,7 @@ function showFullAchievement() {
   }
 }
 
-document.getElementById('achievementBtn')?.addEventListener('click', function() {
+document.getElementById('achievementBtn')?.addEventListener('click', function () {
   document.getElementById('achievementOverlay').classList.remove('show');
   document.getElementById('prize').scrollIntoView({ behavior: 'smooth' });
 });
@@ -210,24 +210,24 @@ function createStageCard(stage, unlocked) {
     3: '<code>GET /api/stage3/profile</code> – view your profile.<br>Try using <code>X-Original-URL</code> to poison the cache.',
     4: '<code>GET /api/stage4/products?sort=name</code> – blind SQL injection in ORDER BY.<br><code>POST /api/stage4/submit</code> – submit the extracted flag.'
   };
-  const defaultMethods = {1:'POST',2:'GET',3:'GET',4:'POST'};
+  const defaultMethods = { 1: 'POST', 2: 'GET', 3: 'GET', 4: 'POST' };
   const defaultUrls = {
-    1:'/api/stage1/forgot',
-    2:'/api/stage2/flag',
-    3:'/api/stage3/profile',
-    4:'/api/stage4/products?sort=name'
+    1: '/api/stage1/forgot',
+    2: '/api/stage2/flag',
+    3: '/api/stage3/profile',
+    4: '/api/stage4/products?sort=name'
   };
   const defaultHeaders = {
-    1:'{"Content-Type": "application/json"}',
-    2:'{"Content-Type": "application/json"}',
-    3:'{"Content-Type": "application/json", "X-Original-URL": "/admin/flag"}',
-    4:'{"Content-Type": "application/json"}'
+    1: '{"Content-Type": "application/json"}',
+    2: '{"Content-Type": "application/json"}',
+    3: '{"Content-Type": "application/json", "X-Original-URL": "/admin/flag"}',
+    4: '{"Content-Type": "application/json"}'
   };
   const defaultBodies = {
-    1:'{"answer": ""}',
-    2:'{}',
-    3:'{}',
-    4:'{}'
+    1: '{"answer": ""}',
+    2: '{}',
+    3: '{}',
+    4: '{}'
   };
 
   div.innerHTML = `
@@ -241,7 +241,7 @@ function createStageCard(stage, unlocked) {
         <div class="rb-row">
           <select id="method${stage}">
             <option>${defaultMethods[stage]}</option>
-            ${stage === 2 || stage === 3 ? '<option>POST</option>' : ''}
+            ${stage === 1 || stage === 4 ? '<option>GET</option>' : ''}${stage === 2 || stage === 3 || stage === 4 ? '<option>POST</option>' : ''}
           </select>
           <input type="text" id="url${stage}" value="${defaultUrls[stage]}" size="50">
         </div>
@@ -264,7 +264,10 @@ function createStageCard(stage, unlocked) {
   return div;
 }
 
-window.sendRequest = async function(stage) {
+// ================================================================
+// FIXED sendRequest – unlocks next stage immediately
+// ================================================================
+window.sendRequest = async function (stage) {
   const method = document.getElementById(`method${stage}`).value;
   let url = document.getElementById(`url${stage}`).value;
   if (!url.startsWith('/')) url = '/' + url;
@@ -273,7 +276,7 @@ window.sendRequest = async function(stage) {
   let headers = {};
   try {
     headers = JSON.parse(headersText);
-  } catch(e) {
+  } catch (e) {
     document.getElementById(`response${stage}`).innerHTML = `<span class="err">Invalid headers JSON</span>`;
     return;
   }
@@ -293,30 +296,46 @@ window.sendRequest = async function(stage) {
     respEl.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
     if (data.solved === true) {
       showToast(`🎉 Flag found: ${data.flag}`, 'success');
-      if (!callsign) {
-        const csRes = await fetch('/api/check_solved', { credentials: 'include' });
-        const csData = await csRes.json();
-        if (csData.callsign) callsign = csData.callsign;
+
+      // === FIX: update local solvedStages immediately ===
+      if (!solvedStages.includes(stage)) {
+        solvedStages.push(stage);
       }
-      await checkSolved();
+      // Re‑render the stages so the next one unlocks instantly
+      renderStages();
+      updateProgress();
+      updatePrizeLock();
+      // Send progress to server and refresh leaderboard (async)
+      updatePlayerProgress();
       fetchLeaderboard();
+
+      // If callsign is missing, fetch it silently
+      if (!callsign) {
+        try {
+          const csRes = await fetch('/api/check_solved', { credentials: 'include' });
+          const csData = await csRes.json();
+          if (csData.callsign) callsign = csData.callsign;
+        } catch (e) { }
+      }
+      // Optionally sync with server (non‑blocking)
+      setTimeout(checkSolved, 300);
     }
     if (data.total_winners) {
       document.getElementById('counter').innerText = `🔍 ${data.total_winners} people have found the flaw so far`;
     }
-  } catch(err) {
+  } catch (err) {
     document.getElementById(`response${stage}`).innerHTML = `<span class="err">Error: ${err.message}</span>`;
   }
 };
 
-window.getHint = async function(stage) {
+window.getHint = async function (stage) {
   try {
     const res = await fetch(`/api/hint/${stage}`, { credentials: 'include' });
     const data = await res.json();
     const hintDiv = document.getElementById(`hint${stage}`);
     hintDiv.innerHTML = `<strong>Hint:</strong> ${data.hint}`;
     hintDiv.style.display = 'block';
-  } catch(err) {
+  } catch (err) {
     showToast('Hint not available', 'error');
   }
 };
@@ -362,7 +381,7 @@ async function fetchLeaderboard() {
     const data = await res.json();
     allPlayers = data;
     renderLeaderboard(data);
-  } catch(e) {
+  } catch (e) {
     console.error('Leaderboard fetch failed', e);
   }
 }
@@ -370,16 +389,16 @@ async function fetchLeaderboard() {
 function renderLeaderboard(players) {
   const tbody = document.getElementById('lbBody');
   if (!tbody) return;
-  
+
   const sorted = sortPlayers(players);
-  
+
   const podiumPlayers = sorted.slice(0, 3);
   const podiumSlots = [
     { id: 'podium-1' },
     { id: 'podium-2' },
     { id: 'podium-3' }
   ];
-  
+
   podiumSlots.forEach((slot, index) => {
     const el = document.getElementById(slot.id);
     if (!el) return;
@@ -397,17 +416,17 @@ function renderLeaderboard(players) {
       el.querySelector('.podium-score').textContent = '0';
     }
   });
-  
+
   if (!sorted.length) {
     tbody.innerHTML = '<div class="lb-empty">No solvers yet. Be the first.</div>';
     document.getElementById('lbPageInfo').innerHTML = 'Showing <strong>0</strong> entries';
     return;
   }
-  
+
   const start = lbPage * LB_PER_PAGE;
   const slice = sorted.slice(start, start + LB_PER_PAGE);
   const totalPages = Math.ceil(sorted.length / LB_PER_PAGE);
-  
+
   tbody.innerHTML = slice.map((p) => {
     const rank = sorted.indexOf(p) + 1;
     let rankClass = 'other';
@@ -415,14 +434,14 @@ function renderLeaderboard(players) {
     if (rank === 1) { rankClass = 'gold'; rankDisplay = '🥇'; }
     else if (rank === 2) { rankClass = 'silver'; rankDisplay = '🥈'; }
     else if (rank === 3) { rankClass = 'bronze'; rankDisplay = '🥉'; }
-    
+
     const isMe = (p.callsign === callsign);
-    const stageDots = [1,2,3,4].map(n => {
+    const stageDots = [1, 2, 3, 4].map(n => {
       return `<div class="lb-stage-dot ${p.solved_count >= n ? 'done' : ''}">${n}</div>`;
     }).join('');
     const timeStr = secondsToHms(p.elapsed_seconds);
     const score = calculateScore(p);
-    
+
     return `<div class="lb-table-row ${isMe ? 'my-row' : ''}">
       <span class="lb-rank ${rankClass}">${rankDisplay}</span>
       <span class="lb-handle">${escapeHtml(p.callsign)}${isMe ? '<span class="you-tag">YOU</span>' : ''}</span>
@@ -431,19 +450,19 @@ function renderLeaderboard(players) {
       <span class="lb-score">${score}</span>
     </div>`;
   }).join('');
-  
+
   const btnWrap = document.getElementById('lbPageBtns');
   if (totalPages <= 1) {
     btnWrap.innerHTML = '';
   } else {
-    let btns = `<button class="lb-page-btn" onclick="lbGo(${lbPage-1})" ${lbPage===0?'disabled':''}>‹</button>`;
-    for (let p=0; p<totalPages; p++) {
-      btns += `<button class="lb-page-btn ${p===lbPage?'active':''}" onclick="lbGo(${p})">${p+1}</button>`;
+    let btns = `<button class="lb-page-btn" onclick="lbGo(${lbPage - 1})" ${lbPage === 0 ? 'disabled' : ''}>‹</button>`;
+    for (let p = 0; p < totalPages; p++) {
+      btns += `<button class="lb-page-btn ${p === lbPage ? 'active' : ''}" onclick="lbGo(${p})">${p + 1}</button>`;
     }
-    btns += `<button class="lb-page-btn" onclick="lbGo(${lbPage+1})" ${lbPage===totalPages-1?'disabled':''}>›</button>`;
+    btns += `<button class="lb-page-btn" onclick="lbGo(${lbPage + 1})" ${lbPage === totalPages - 1 ? 'disabled' : ''}>›</button>`;
     btnWrap.innerHTML = btns;
   }
-  
+
   const startEntry = start + 1;
   const endEntry = Math.min(start + LB_PER_PAGE, sorted.length);
   document.getElementById('lbPageInfo').innerHTML = `
@@ -456,14 +475,14 @@ function secondsToHms(sec) {
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
   const s = sec % 60;
-  return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-window.lbGo = function(p) {
+window.lbGo = function (p) {
   lbPage = Math.max(0, p);
   fetchLeaderboard();
 };
@@ -475,7 +494,7 @@ async function updatePlayerProgress() {
     const statusRes = await fetch('/api/session_status', { credentials: 'include' });
     const statusData = await statusRes.json();
     if (statusData.elapsed !== undefined) elapsedSec = statusData.elapsed;
-  } catch(e) {}
+  } catch (e) { }
   try {
     await fetch('/api/update_progress', {
       method: 'POST',
@@ -484,7 +503,7 @@ async function updatePlayerProgress() {
       body: JSON.stringify({ solved: solvedStages, elapsed_seconds: elapsedSec })
     });
     fetchLeaderboard();
-  } catch(e) {
+  } catch (e) {
     console.error('Progress update failed', e);
   }
 }
@@ -674,49 +693,49 @@ function showQuitDialog() {
   const stagesSolved = document.getElementById('quitStagesSolved');
   const timeSpent = document.getElementById('quitTimeSpent');
   const affirmation = document.getElementById('quitAffirmation');
-  
+
   fetch('/api/session_status', { credentials: 'include' })
     .then(res => res.json())
     .then(data => {
       if (data.elapsed !== undefined) {
-        const hrs = String(Math.floor(data.elapsed / 3600)).padStart(2,'0');
-        const mins = String(Math.floor((data.elapsed % 3600) / 60)).padStart(2,'0');
-        const secs = String(data.elapsed % 60).padStart(2,'0');
+        const hrs = String(Math.floor(data.elapsed / 3600)).padStart(2, '0');
+        const mins = String(Math.floor((data.elapsed % 3600) / 60)).padStart(2, '0');
+        const secs = String(data.elapsed % 60).padStart(2, '0');
         timeSpent.textContent = `${hrs}:${mins}:${secs}`;
       } else {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        const hrs = String(Math.floor(elapsed / 3600)).padStart(2,'0');
-        const mins = String(Math.floor((elapsed % 3600) / 60)).padStart(2,'0');
-        const secs = String(elapsed % 60).padStart(2,'0');
+        const hrs = String(Math.floor(elapsed / 3600)).padStart(2, '0');
+        const mins = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
+        const secs = String(elapsed % 60).padStart(2, '0');
         timeSpent.textContent = `${hrs}:${mins}:${secs}`;
       }
     })
     .catch(() => {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      const hrs = String(Math.floor(elapsed / 3600)).padStart(2,'0');
-      const mins = String(Math.floor((elapsed % 3600) / 60)).padStart(2,'0');
-      const secs = String(elapsed % 60).padStart(2,'0');
+      const hrs = String(Math.floor(elapsed / 3600)).padStart(2, '0');
+      const mins = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
+      const secs = String(elapsed % 60).padStart(2, '0');
       timeSpent.textContent = `${hrs}:${mins}:${secs}`;
     });
-  
+
   stagesSolved.textContent = solvedStages.length;
   affirmation.style.display = 'none';
   overlay.classList.add('show');
 }
 
-document.getElementById('quitCancel')?.addEventListener('click', function() {
+document.getElementById('quitCancel')?.addEventListener('click', function () {
   document.getElementById('quitOverlay').classList.remove('show');
 });
 
-document.getElementById('quitConfirm')?.addEventListener('click', function() {
+document.getElementById('quitConfirm')?.addEventListener('click', function () {
   const affirmation = document.getElementById('quitAffirmation');
   const solved = solvedStages.length;
   const total = 4;
-  
+
   let message = '';
   const emojis = ['💪', '🔥', '🌟', '👏', '🎯', '🚀'];
   const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-  
+
   if (solved === 0) {
     message = `${randomEmoji} Every master was once a beginner. Keep going!`;
   } else if (solved < 3) {
@@ -726,10 +745,10 @@ document.getElementById('quitConfirm')?.addEventListener('click', function() {
   } else if (solved === 4) {
     message = `🏆 LEGEND! You conquered all 4 stages! Go claim your prize! 🏆`;
   }
-  
+
   affirmation.textContent = message;
   affirmation.style.display = 'block';
-  
+
   setTimeout(() => {
     fetch('/api/quit_session', { method: 'POST', credentials: 'include' })
       .then(res => res.json())
@@ -778,10 +797,10 @@ function updatePrizeLock() {
 // DOM READY
 // ================================================================
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   const themeBtn = document.getElementById('theme-btn');
   if (themeBtn) {
-    themeBtn.addEventListener('click', function() {
+    themeBtn.addEventListener('click', function () {
       setTheme(getTheme() === 'dark' ? 'light' : 'dark');
     });
   }
@@ -789,7 +808,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const startBtn = document.getElementById('start-btn');
   if (startBtn) {
-    startBtn.addEventListener('click', function(e) {
+    startBtn.addEventListener('click', function (e) {
       e.preventDefault();
       const section = document.getElementById('stages-section');
       if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -799,7 +818,7 @@ document.addEventListener('DOMContentLoaded', function() {
   for (let i = 0; i < 4; i++) {
     const node = document.getElementById('ps-node-' + i);
     if (node) {
-      node.addEventListener('click', function() {
+      node.addEventListener('click', function () {
         const section = document.getElementById('stages-section');
         if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
@@ -807,7 +826,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   document.querySelectorAll('.header-nav-inner .nav-link').forEach(link => {
-    link.addEventListener('click', function(e) {
+    link.addEventListener('click', function (e) {
       e.preventDefault();
       const target = this.getAttribute('href');
       if (target && target.startsWith('#')) {
@@ -827,7 +846,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const newClaimBtn = claimBtn.cloneNode(true);
     claimBtn.parentNode.replaceChild(newClaimBtn, claimBtn);
 
-    newClaimBtn.addEventListener('click', async function() {
+    newClaimBtn.addEventListener('click', async function () {
       if (!prizeResponse) return;
       if (solvedStages.length < 4) {
         prizeResponse.innerHTML = '<div class="prize-error">⚠️ Complete all 4 stages first!</div>';
@@ -876,7 +895,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   if (copyBtn && tokenValue) {
-    copyBtn.addEventListener('click', function() {
+    copyBtn.addEventListener('click', function () {
       const text = tokenValue.textContent;
       if (!text || text === '—') return;
 
@@ -907,7 +926,7 @@ document.addEventListener('DOMContentLoaded', function() {
   checkExistingSession();
 });
 
-window.addEventListener('scroll', function() {
+window.addEventListener('scroll', function () {
   const header = document.querySelector('.game-header-inner');
   if (header) {
     if (window.scrollY > 10) {
