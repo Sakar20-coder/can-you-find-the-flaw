@@ -98,7 +98,7 @@ async function checkSolved() {
     const newStages = solvedStages.filter(s => !prevSolved.includes(s));
     if (newStages.length > 0) {
       newStages.forEach(stage => {
-        showStageAchievement(stage + 1);
+        showStageAchievement(stage);
       });
     }
 
@@ -187,7 +187,7 @@ function renderStages() {
   for (let i = 1; i <= 4; i++) {
     let unlocked = false;
     if (i === 1) unlocked = true;
-    else if (solvedStages.includes(i - 1)) unlocked = true;
+    else if (solvedStages.includes(i)) unlocked = true;
     container.appendChild(createStageCard(i, unlocked));
   }
 }
@@ -297,19 +297,15 @@ window.sendRequest = async function (stage) {
     if (data.solved === true) {
       showToast(`🎉 Flag found: ${data.flag}`, 'success');
 
-      // === FIX: update local solvedStages immediately ===
       if (!solvedStages.includes(stage)) {
         solvedStages.push(stage);
       }
-      // Re‑render the stages so the next one unlocks instantly
       renderStages();
       updateProgress();
       updatePrizeLock();
-      // Send progress to server and refresh leaderboard (async)
       updatePlayerProgress();
       fetchLeaderboard();
 
-      // If callsign is missing, fetch it silently
       if (!callsign) {
         try {
           const csRes = await fetch('/api/check_solved', { credentials: 'include' });
@@ -317,7 +313,6 @@ window.sendRequest = async function (stage) {
           if (csData.callsign) callsign = csData.callsign;
         } catch (e) {}
       }
-      // Optionally sync with server (non‑blocking)
       setTimeout(checkSolved, 300);
     }
     if (data.total_winners) {
@@ -340,7 +335,7 @@ window.getHint = async function (stage) {
   }
 };
 
-// ======================== SCORING (per‑stage time limits) ========================
+// ======================== SCORING ========================
 
 function calculateScore(player) {
   const solved = player.solved_count || 0;
@@ -631,16 +626,39 @@ function updateProgress() {
     const node = document.getElementById('ps-node-' + i);
     const line = document.getElementById('ps-line-' + i);
     if (!node) continue;
+    
     node.classList.remove('active', 'done');
-    if (solved.includes(i)) {
+    
+    // === FIX: Use i+1 because backend stores 1,2,3,4 ===
+    const stageNum = i + 1;
+    
+    if (solved.includes(stageNum)) {
       node.classList.add('done');
       const numEl = node.querySelector('.ps-num');
       if (numEl) {
-        numEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+        numEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
       }
-      if (line) line.classList.add('done');
+      if (line && i < 3) {
+        line.classList.add('done');
+      }
     } else if (solved.length === i || (i === 0 && solved.length === 0)) {
       node.classList.add('active');
+      if (line) {
+        line.classList.remove('done');
+      }
+    } else {
+      if (line) {
+        line.classList.remove('done');
+      }
+    }
+  }
+
+  if (solved.length === 4) {
+    for (let i = 0; i < 3; i++) {
+      const line = document.getElementById('ps-line-' + i);
+      if (line) {
+        line.classList.add('done');
+      }
     }
   }
 }
@@ -767,7 +785,9 @@ function updatePrizeLock() {
 
   dots.forEach((dot, i) => {
     dot.classList.remove('done', 'active');
-    if (solved.includes(i)) {
+    // === FIX: Use i+1 because backend stores 1,2,3,4 ===
+    const stageNum = i + 1;
+    if (solved.includes(stageNum)) {
       dot.classList.add('done');
     } else if (solved.length === i) {
       dot.classList.add('active');
@@ -799,6 +819,18 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   setTheme(getTheme());
 
+  const logoLink = document.querySelector('.logo');
+  if (logoLink) {
+    logoLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      const hero = document.getElementById('hero');
+      if (hero) {
+        hero.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+    logoLink.style.cursor = 'pointer';
+  }
+
   const startBtn = document.getElementById('start-btn');
   if (startBtn) {
     startBtn.addEventListener('click', function (e) {
@@ -829,7 +861,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // ===== FIX: Attach authentication event listeners here =====
   const enterBtn = document.getElementById('enterArenaBtn');
   const callsignInput = document.getElementById('callsignInput');
   if (enterBtn) {

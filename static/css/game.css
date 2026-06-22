@@ -2164,3 +2164,219 @@ textarea:focus {
     font-size: 0.75rem;
   }
 }
+
+/* ================================================================
+   PROGRESS STRIP – FORCE FIX (OVERRIDE CONFLICTS)
+   ================================================================ */
+
+/* Force progress strip to work properly */
+.progress-strip {
+  position: sticky;
+  top: 70px;
+  z-index: 99;
+  height: 56px;
+  background: var(--bg-strip);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 2.5rem;
+  gap: 1.5rem;
+  backdrop-filter: blur(16px) saturate(1.6);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+}
+
+.ps-label {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+.ps-track {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 0;
+  padding: 0 0.5rem;
+}
+
+.ps-step {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  position: relative;
+}
+
+.ps-step.last {
+  flex: 0 0 auto;
+}
+
+.ps-node {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  border: 3px solid var(--border) !important;
+  background: var(--bg) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  position: relative !important;
+  cursor: pointer !important;
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  z-index: 2 !important;
+}
+
+.ps-node.active {
+  border-color: var(--orange) !important;
+  box-shadow: 0 0 0 5px rgba(229, 90, 28, 0.15), 0 0 30px rgba(229, 90, 28, 0.05) !important;
+  transform: scale(1.08) !important;
+}
+
+.ps-node.active .ps-num {
+  color: var(--orange) !important;
+}
+
+.ps-node.done {
+  border-color: var(--red) !important;
+  background: var(--red) !important;
+  box-shadow: 0 0 0 5px rgba(192, 57, 43, 0.15) !important;
+  transform: scale(1.05) !important;
+}
+
+.ps-node.done .ps-num {
+  color: #fff !important;
+}
+
+.ps-node.done .ps-num svg {
+  stroke: #fff !important;
+}
+
+.ps-num {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  transition: all 0.4s;
+  line-height: 1;
+}
+
+.ps-tip {
+  position: absolute;
+  top: calc(100% + 14px);
+  left: 50%;
+  transform: translateX(-50%) scale(0.9);
+  white-space: nowrap;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 5px 14px;
+  pointer-events: none;
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  font-weight: 600;
+}
+
+.ps-node:hover .ps-tip,
+.ps-node:focus .ps-tip {
+  opacity: 1 !important;
+  transform: translateX(-50%) scale(1) !important;
+}
+
+.ps-line {
+  flex: 1 !important;
+  height: 3px !important;
+  min-width: 10px !important;
+  background: var(--border) !important;
+  transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1) !important;
+  position: relative !important;
+  z-index: 1 !important;
+  border-radius: 2px !important;
+  margin: 0 -2px !important;
+}
+
+.ps-line.done {
+  background: linear-gradient(90deg, var(--red), var(--orange)) !important;
+  width: 100% !important;
+  animation: line-progress 0.8s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+@keyframes line-progress {
+  from { transform: scaleX(0); transform-origin: left; }
+  to { transform: scaleX(1); transform-origin: left; }
+}
+
+.ps-pct {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--orange);
+  flex-shrink: 0;
+  min-width: 3.5rem;
+  text-align: right;
+  letter-spacing: 0.05em;
+  position: relative;
+}
+
+.ps-pct::before {
+  content: '';
+  position: absolute;
+  right: -10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 24px;
+  background: var(--border);
+  opacity: 0.3;
+}
+
+/* Ensure line is full width when done */
+.ps-step:not(.last) .ps-line {
+  flex: 1 !important;
+}
+/* ================================================================
+   FORCE TICK VISIBILITY – ULTIMATE FIX
+   ================================================================ */
+
+/* Force all done nodes to show tick */
+.ps-node.done .ps-num {
+  font-size: 0 !important;
+  color: transparent !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.ps-node.done .ps-num svg {
+  display: block !important;
+  width: 16px !important;
+  height: 16px !important;
+  stroke: #ffffff !important;
+  stroke-width: 3.5 !important;
+  fill: none !important;
+  flex-shrink: 0 !important;
+}
+
+.ps-node.done .ps-num svg polyline {
+  stroke: #ffffff !important;
+  stroke-width: 3.5 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+
+/* Make sure the number is completely hidden */
+.ps-node.done .ps-num {
+  color: transparent !important;
+  font-size: 0 !important;
+}
