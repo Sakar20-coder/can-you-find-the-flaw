@@ -60,7 +60,7 @@ function updateServerTimer() {
         if (timerSpan) timerSpan.innerText = `${hrs}:${mins}:${secs}`;
       }
     })
-    .catch(() => { });
+    .catch(() => {});
 }
 
 function startGlobalTimer() {
@@ -116,8 +116,8 @@ function showStageAchievement(stageNum) {
   const subs = [
     'You bypassed the rate limit and reset the password!',
     'You exploited the JSONP leak!',
-    'You poisoned the cache and leaked the flag!',
-    'You exploited the blind SQL injection!'
+    'You poisoned the cache and retrieved the flag!',
+    'You exploited the SQL injection!'
   ];
   showToast(`${emojis[stageNum - 1]} ${titles[stageNum - 1]} ${subs[stageNum - 1]}`, 'success');
 }
@@ -202,20 +202,20 @@ function createStageCard(stage, unlocked) {
     1: '01 · Forgot Password (Rate Limit Bypass)',
     2: '02 · API Gateway (JSONP)',
     3: '03 · Profile Viewer (Cache Poisoning)',
-    4: '04 · Product Sorting (Blind SQLi)'
+    4: '04 · Product ID (Union SQLi)'
   };
   const descriptions = {
     1: '<code>POST /api/stage1/forgot</code> – answer the security question.<br>You have 3 attempts per IP. Can you bypass the limit?<br><code>GET /api/internal/notes</code> – hidden endpoint with <code>X-Admin: true</code>',
     2: '<code>GET /api/stage2/flag</code> – fetch something? Try different parameters.<br><code>POST /api/stage2/submit</code> – submit what you find.',
-    3: '<code>GET /api/stage3/profile</code> – view your profile.<br>Try using <code>X-Original-URL</code> to poison the cache.',
-    4: '<code>GET /api/stage4/products?sort=name</code> – blind SQL injection in ORDER BY.<br><code>POST /api/stage4/submit</code> – submit the extracted flag.'
+    3: '<code>GET /api/stage3/profile</code> – poison the cache with <code>X-Original-URL: /admin/flag</code>, then visit normally to retrieve the flag.',
+    4: '<code>GET /api/stage4/product?id=1</code> – SQL injection in the id parameter.<br>Use UNION SELECT to explore the database schema (sqlite_master) and then extract the flag from the flag_table.<br><code>POST /api/stage4/submit</code> – submit the flag if it doesn\'t auto-solve.'
   };
-  const defaultMethods = { 1: 'POST', 2: 'GET', 3: 'GET', 4: 'POST' };
+  const defaultMethods = { 1: 'POST', 2: 'GET', 3: 'GET', 4: 'GET' };
   const defaultUrls = {
     1: '/api/stage1/forgot',
     2: '/api/stage2/flag',
     3: '/api/stage3/profile',
-    4: '/api/stage4/products?sort=name'
+    4: '/api/stage4/product?id=1'
   };
   const defaultHeaders = {
     1: '{"Content-Type": "application/json"}',
@@ -315,7 +315,7 @@ window.sendRequest = async function (stage) {
           const csRes = await fetch('/api/check_solved', { credentials: 'include' });
           const csData = await csRes.json();
           if (csData.callsign) callsign = csData.callsign;
-        } catch (e) { }
+        } catch (e) {}
       }
       // Optionally sync with server (non‑blocking)
       setTimeout(checkSolved, 300);
@@ -494,7 +494,7 @@ async function updatePlayerProgress() {
     const statusRes = await fetch('/api/session_status', { credentials: 'include' });
     const statusData = await statusRes.json();
     if (statusData.elapsed !== undefined) elapsedSec = statusData.elapsed;
-  } catch (e) { }
+  } catch (e) {}
   try {
     await fetch('/api/update_progress', {
       method: 'POST',
@@ -617,13 +617,6 @@ async function checkExistingSession() {
   } catch (err) {
     if (authModal) authModal.style.display = 'flex';
   }
-}
-
-if (enterBtn) enterBtn.addEventListener('click', () => authenticateAndEnter(callsignInput.value));
-if (callsignInput) {
-  callsignInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') authenticateAndEnter(callsignInput.value);
-  });
 }
 
 // ======================== HOMEPAGE ENHANCEMENTS ========================
@@ -835,6 +828,18 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
   });
+
+  // ===== FIX: Attach authentication event listeners here =====
+  const enterBtn = document.getElementById('enterArenaBtn');
+  const callsignInput = document.getElementById('callsignInput');
+  if (enterBtn) {
+    enterBtn.addEventListener('click', () => authenticateAndEnter(callsignInput ? callsignInput.value : ''));
+  }
+  if (callsignInput) {
+    callsignInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') authenticateAndEnter(callsignInput.value);
+    });
+  }
 
   const claimBtn = document.getElementById('claimBtn');
   const prizeResponse = document.getElementById('prizeResponse');

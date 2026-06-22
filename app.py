@@ -44,8 +44,8 @@ def api_hint(stage):
     hints = {
         1: "Try fetching /api/internal/notes with X-Admin: true first. Then cycle X-Forwarded-For IPs to bypass the rate limit.",
         2: "Use ?callback=anything to leak the flag from the JSONP response.",
-        3: "The proxy respects X-Original-URL for routing, but the cache key uses the original URL path. What if you request /profile with X-Original-URL: /admin/flag?",
-        4: "The sort parameter is vulnerable to blind SQL injection – use CASE WHEN to extract the flag from flag_table."
+        3: "Send a request to /profile with X-Original-URL: /admin/flag to poison the cache. Then visit /profile again (without the header) to retrieve the flag from cache.",
+        4: "First, find all tables using UNION SELECT NULL, name, NULL FROM sqlite_master. Then discover columns and extract the flag."
     }
     return jsonify({'hint': hints.get(stage, 'No hint available')})
 
