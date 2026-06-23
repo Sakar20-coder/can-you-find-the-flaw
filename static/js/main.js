@@ -187,7 +187,7 @@ function renderStages() {
   for (let i = 1; i <= 4; i++) {
     let unlocked = false;
     if (i === 1) unlocked = true;
-    else if (solvedStages.includes(i)) unlocked = true;
+    else if (solvedStages.includes(i - 1)) unlocked = true;
     container.appendChild(createStageCard(i, unlocked));
   }
 }
