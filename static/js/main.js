@@ -52,12 +52,9 @@ function speakWelcome(name) {
 // HACKER-THEMED PROFESSIONAL SOUND SYSTEM
 // ================================================================
 
-// Deep, dark synth sound for flag found (hacker vibe)
 function playFlagSound() {
   try {
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    
-    // Dark, descending bass synth
     const notes = [200, 180, 160, 140];
     notes.forEach((freq, i) => {
       const osc = audioCtx.createOscillator();
@@ -71,8 +68,6 @@ function playFlagSound() {
       osc.start(audioCtx.currentTime + i * 0.08);
       osc.stop(audioCtx.currentTime + i * 0.08 + 0.2);
     });
-    
-    // Add a subtle high-pitched glitch
     setTimeout(() => {
       const osc2 = audioCtx.createOscillator();
       const gain2 = audioCtx.createGain();
@@ -88,12 +83,9 @@ function playFlagSound() {
   } catch (e) {}
 }
 
-// Epic hacker victory sound - dark & professional
 function playVictorySound() {
   try {
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    
-    // Dark ascending bassline
     const notes = [110, 130, 155, 185, 220, 260];
     notes.forEach((freq, i) => {
       const osc = audioCtx.createOscillator();
@@ -107,8 +99,6 @@ function playVictorySound() {
       osc.start(audioCtx.currentTime + i * 0.12);
       osc.stop(audioCtx.currentTime + i * 0.12 + 0.3);
     });
-    
-    // Drum hit
     setTimeout(() => {
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
@@ -121,8 +111,6 @@ function playVictorySound() {
       osc.start(audioCtx.currentTime);
       osc.stop(audioCtx.currentTime + 0.3);
     }, 600);
-    
-    // Sub-bass rumble
     setTimeout(() => {
       const osc2 = audioCtx.createOscillator();
       const gain2 = audioCtx.createGain();
@@ -138,7 +126,6 @@ function playVictorySound() {
   } catch (e) {}
 }
 
-// Professional speech announcement (same as welcome)
 function speakAchievement(message) {
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
@@ -163,14 +150,13 @@ function showStageAchievement(stageNum) {
     'You poisoned the cache and retrieved the flag!',
     'You exploited the SQL injection!'
   ];
-  
   playFlagSound();
   showToast(`${emojis[stageNum - 1]} ${titles[stageNum - 1]} ${subs[stageNum - 1]}`, 'success');
   createFlagAnimation(stageNum);
 }
 
 function createFlagAnimation(stageNum) {
-  const emojis = ['🔓', '🛡️', '💎', '🚀'];
+  const emojis = ['🔓', '��️', '💎', '🚀'];
   const titles = ['STAGE 1 COMPLETE!', 'STAGE 2 COMPLETE!', 'STAGE 3 COMPLETE!', 'STAGE 4 COMPLETE!'];
   const subs = [
     'You bypassed the rate limit and reset the password!',
@@ -178,7 +164,6 @@ function createFlagAnimation(stageNum) {
     'You poisoned the cache and retrieved the flag!',
     'You exploited the SQL injection!'
   ];
-  
   const overlay = document.createElement('div');
   overlay.className = 'flag-animation-overlay';
   overlay.innerHTML = `
@@ -193,7 +178,6 @@ function createFlagAnimation(stageNum) {
       <button class="flag-dismiss-btn">CONTINUE</button>
     </div>
   `;
-  
   const container = overlay.querySelector('.flag-animation-content');
   const colors = ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff', '#5f27cd', '#1dd1a1'];
   for (let i = 0; i < 60; i++) {
@@ -209,9 +193,7 @@ function createFlagAnimation(stageNum) {
     confetti.style.animationDelay = (Math.random() * 2) + 's';
     container.appendChild(confetti);
   }
-  
   document.body.appendChild(overlay);
-  
   const dismissBtn = overlay.querySelector('.flag-dismiss-btn');
   const dismiss = () => {
     overlay.classList.add('fade-out');
@@ -221,16 +203,10 @@ function createFlagAnimation(stageNum) {
   setTimeout(dismiss, 4000);
 }
 
-// ================================================================
-// PROFESSIONAL CELEBRATION – ALL 4 STAGES COMPLETE
-// ================================================================
-
 function showFullAchievement() {
   if (celebrationInProgress) return;
   celebrationInProgress = true;
-  
   playVictorySound();
-  
   const overlay = document.getElementById('achievementOverlay');
   const title = document.getElementById('achievementTitle');
   const sub = document.getElementById('achievementSub');
@@ -238,21 +214,17 @@ function showFullAchievement() {
   const stagesSolved = document.getElementById('achStagesSolved');
   const rank = document.getElementById('achPlayerRank');
   const total = document.getElementById('achTotalSolvers');
-
   const sorted = sortPlayers(allPlayers);
   const playerRank = sorted.findIndex(p => p.callsign === callsign) + 1;
   const totalSolvers = sorted.length;
-
   const celebrationEmojis = ['🎉', '🎊', '👏', '🏆', '⭐', '🔥', '💪', '🚀'];
   const randomEmoji = celebrationEmojis[Math.floor(Math.random() * celebrationEmojis.length)];
-
   emoji.textContent = randomEmoji;
   title.textContent = '🏆 YOU DID IT!';
   sub.textContent = `You're the #${playerRank} person to solve all 4 challenges!`;
   stagesSolved.textContent = '4';
   rank.textContent = `#${playerRank}`;
   total.textContent = totalSolvers;
-
   const container = document.getElementById('confettiContainer');
   container.innerHTML = '';
   const colors = ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff', '#5f27cd', '#1dd1a1', '#f368e0', '#00d2d3', '#ff6348'];
@@ -269,10 +241,7 @@ function showFullAchievement() {
     confetti.style.animationDelay = (Math.random() * 2) + 's';
     container.appendChild(confetti);
   }
-
   overlay.classList.add('show');
-
-  // Speech synthesis – congratulations with rank
   if (window.speechSynthesis) {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(
@@ -283,18 +252,16 @@ function showFullAchievement() {
     utterance.volume = 1;
     setTimeout(() => window.speechSynthesis.speak(utterance), 400);
   }
-  
   celebrationInProgress = false;
 }
 
 document.getElementById('achievementBtn')?.addEventListener('click', function () {
   document.getElementById('achievementOverlay').classList.remove('show');
-  // Smooth scroll to prize section
   document.getElementById('prize').scrollIntoView({ behavior: 'smooth', block: 'center' });
 });
 
 // ================================================================
-// TIMER (server‑side)
+// TIMER (server side)
 // ================================================================
 
 function updateServerTimer() {
@@ -340,25 +307,18 @@ async function checkSolved() {
     const res = await fetch('/api/check_solved', { credentials: 'include' });
     const data = await res.json();
     const prevSolved = [...solvedStages];
-    
-    // === CRITICAL: Update solvedStages FIRST ===
     solvedStages = data.solved || [];
     callsign = data.callsign || '';
-    
-    // === THEN render stages with the updated solvedStages ===
     renderStages();
     updateProgress();
     updatePrizeLock();
     updatePlayerProgress();
-
     const newStages = solvedStages.filter(s => !prevSolved.includes(s));
     if (newStages.length > 0) {
       newStages.forEach(stage => {
         showStageAchievement(stage);
       });
     }
-
-    // Trigger full achievement IMMEDIATELY when all 4 are solved
     if (solvedStages.length === 4 && prevSolved.length < 4) {
       showFullAchievement();
       setTimeout(() => {
@@ -379,18 +339,12 @@ function renderStages() {
   const container = document.getElementById('stages');
   if (!container) return;
   container.innerHTML = '';
-  
-  // Use the latest solvedStages
   const currentSolved = solvedStages || [];
-  
   for (let i = 1; i <= 4; i++) {
     let unlocked = false;
     if (i === 1) unlocked = true;
-<<<<<<< HEAD
-    else if (currentSolved.includes(i)) unlocked = true;
-=======
-    else if (solvedStages.includes(i - 1)) unlocked = true;
->>>>>>> 8b7a558c6918dfb42758d07007655cfa05af9abf
+    // === FIX: use i-1 to unlock next stage ===
+    else if (currentSolved.includes(i - 1)) unlocked = true;
     container.appendChild(createStageCard(i, unlocked));
   }
 }
@@ -494,21 +448,14 @@ window.sendRequest = async function (stage) {
     const data = await res.json();
     const respEl = document.getElementById(`response${stage}`);
     respEl.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
-    
     if (data.solved === true) {
       showToast(`🎉 Flag found: ${data.flag}`, 'success');
-
-      // === FIX: Add the solved stage to local array ===
       if (!solvedStages.includes(stage)) {
         solvedStages.push(stage);
       }
-      
-      // === FIX: Immediately render stages to unlock the next one ===
       renderStages();
       updateProgress();
       updatePrizeLock();
-      
-      // === FIX: Check if all 4 are solved locally ===
       if (solvedStages.length === 4) {
         showFullAchievement();
         setTimeout(() => {
@@ -516,11 +463,8 @@ window.sendRequest = async function (stage) {
           if (prize) prize.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 1500);
       }
-      
-      // Update server in background (don't wait)
       updatePlayerProgress();
       fetchLeaderboard();
-
       if (!callsign) {
         try {
           const csRes = await fetch('/api/check_solved', { credentials: 'include' });
@@ -597,16 +541,13 @@ async function fetchLeaderboard() {
 function renderLeaderboard(players) {
   const tbody = document.getElementById('lbBody');
   if (!tbody) return;
-
   const sorted = sortPlayers(players);
-
   const podiumPlayers = sorted.slice(0, 3);
   const podiumSlots = [
     { id: 'podium-1' },
     { id: 'podium-2' },
     { id: 'podium-3' }
   ];
-
   podiumSlots.forEach((slot, index) => {
     const el = document.getElementById(slot.id);
     if (!el) return;
@@ -624,17 +565,14 @@ function renderLeaderboard(players) {
       el.querySelector('.podium-score').textContent = '0';
     }
   });
-
   if (!sorted.length) {
     tbody.innerHTML = '<div class="lb-empty">No solvers yet. Be the first.</div>';
     document.getElementById('lbPageInfo').innerHTML = 'Showing <strong>0</strong> entries';
     return;
   }
-
   const start = lbPage * LB_PER_PAGE;
   const slice = sorted.slice(start, start + LB_PER_PAGE);
   const totalPages = Math.ceil(sorted.length / LB_PER_PAGE);
-
   tbody.innerHTML = slice.map((p) => {
     const rank = sorted.indexOf(p) + 1;
     let rankClass = 'other';
@@ -642,14 +580,12 @@ function renderLeaderboard(players) {
     if (rank === 1) { rankClass = 'gold'; rankDisplay = '🥇'; }
     else if (rank === 2) { rankClass = 'silver'; rankDisplay = '🥈'; }
     else if (rank === 3) { rankClass = 'bronze'; rankDisplay = '🥉'; }
-
     const isMe = (p.callsign === callsign);
     const stageDots = [1, 2, 3, 4].map(n => {
       return `<div class="lb-stage-dot ${p.solved_count >= n ? 'done' : ''}">${n}</div>`;
     }).join('');
     const timeStr = secondsToHms(p.elapsed_seconds);
     const score = calculateScore(p);
-
     return `<div class="lb-table-row ${isMe ? 'my-row' : ''}">
       <span class="lb-rank ${rankClass}">${rankDisplay}</span>
       <span class="lb-handle">${escapeHtml(p.callsign)}${isMe ? '<span class="you-tag">YOU</span>' : ''}</span>
@@ -658,7 +594,6 @@ function renderLeaderboard(players) {
       <span class="lb-score">${score}</span>
     </div>`;
   }).join('');
-
   const btnWrap = document.getElementById('lbPageBtns');
   if (totalPages <= 1) {
     btnWrap.innerHTML = '';
@@ -670,7 +605,6 @@ function renderLeaderboard(players) {
     btns += `<button class="lb-page-btn" onclick="lbGo(${lbPage + 1})" ${lbPage === totalPages - 1 ? 'disabled' : ''}>›</button>`;
     btnWrap.innerHTML = btns;
   }
-
   const startEntry = start + 1;
   const endEntry = Math.min(start + LB_PER_PAGE, sorted.length);
   document.getElementById('lbPageInfo').innerHTML = `
@@ -839,11 +773,8 @@ function updateProgress() {
     const node = document.getElementById('ps-node-' + i);
     const line = document.getElementById('ps-line-' + i);
     if (!node) continue;
-    
     node.classList.remove('active', 'done');
-    
     const stageNum = i + 1;
-    
     if (solved.includes(stageNum)) {
       node.classList.add('done');
       const numEl = node.querySelector('.ps-num');
@@ -1072,14 +1003,19 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
+  // ===== FIX: Attach authentication event listeners =====
   const enterBtn = document.getElementById('enterArenaBtn');
   const callsignInput = document.getElementById('callsignInput');
   if (enterBtn) {
-    enterBtn.addEventListener('click', () => authenticateAndEnter(callsignInput ? callsignInput.value : ''));
+    enterBtn.addEventListener('click', function () {
+      authenticateAndEnter(callsignInput ? callsignInput.value : '');
+    });
   }
   if (callsignInput) {
-    callsignInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') authenticateAndEnter(callsignInput.value);
+    callsignInput.addEventListener('keypress', function (e) {
+      if (e.key === 'Enter') {
+        authenticateAndEnter(callsignInput.value);
+      }
     });
   }
 
