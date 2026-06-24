@@ -4,39 +4,27 @@ hints_bp = Blueprint('hints', __name__)
 
 HINTS = {
     1: [
-        "The application remembers who is making requests.",
-        "Check every endpoint, not just the obvious ones.",
-        "Some request metadata may be more important than it looks.",
-        "You need information from one place to solve another."
+        "The rate limiter uses your IP address to track attempts. Can you make it see a different IP each time without actually changing your network?",
+        "There's an internal endpoint that might tell you the admin's secret answer. Try requesting it with a header that suggests you're an admin.",
+        "The server trusts the last IP in the X-Forwarded-For header. Sending multiple IPs lets you cycle through them to avoid the limit.",
+        "The hidden endpoint returns a pet name. That name is the answer you need for the password reset question."
     ],
     2: [
-        "The response changes when a specific query parameter is present.",
-        "Pay attention to the content type being returned.",
-        "The endpoint returns more than just data.",
-        "Think about how browsers handle external JavaScript."
+        "The /flag endpoint behaves differently when you add a query parameter that looks like a function name. What could that be for?",
+        "That parameter triggers a JSONP response – a way to fetch data across origins. The response is a JavaScript function call containing the flag.",
+        "You can create a simple HTML page that loads this script and defines a global function to catch the flag.",
+        "Once you have the flag, submit it to the /submit endpoint to complete the stage."
     ],
     3: [
-        "A single request can affect a later request.",
-        "Look closely at headers related to routing or rewriting.",
-        "Not all request information is treated equally by every layer.",
-        "The interesting behavior is not visible on the first request."
+        "The server uses a proxy that can rewrite the request path based on a header. But the cache key might not include that header.",
+        "Try adding a header like X-Original-URL when requesting the profile page. What happens if you point it to a different path?",
+        "The proxy caches the response under the original URL, not the rewritten one. The first request stores data, the second retrieves it.",
+        "Request the profile with the rewrite header set to the flag endpoint, then request the profile normally – the flag will be served from cache."
     ],
     4: [
-        "The database query is influenced by user input.",
-        "Try inputs that change the structure of the query, not just its value.",
-        "Unexpected rows can be just as useful as expected ones.",
-        "The application may reveal more than the products table."
+        "The 'id' parameter is inserted directly into an SQL query. Can you break the query to add your own logic?",
+        "A UNION SELECT lets you combine results from another table. You need to match the number of columns – start with 3.",
+        "First, list all tables in the database using sqlite_master. Look for a table that might hold a secret.",
+        "Once you find the table and its column, extract the flag with a UNION SELECT and submit it."
     ]
 }
-
-@hints_bp.route('/hint/<int:stage>', methods=['GET'])
-def get_hint(stage):
-    hint_count = session.get(f'hint_{stage}', 0)
-    session[f'hint_{stage}'] = hint_count + 1
-    session.modified = True
-
-    if stage not in HINTS:
-        return jsonify({'error': 'Invalid stage'}), 400
-
-    idx = min(hint_count, len(HINTS[stage]) - 1)
-    return jsonify({'hint': HINTS[stage][idx]})
