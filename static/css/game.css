@@ -1517,21 +1517,70 @@ textarea:focus {
 }
 
 /* ----------------------------------------------------------------
-   FOOTER
+   FOOTER – SLIGHTLY SMALLER
    ---------------------------------------------------------------- */
 .game-footer {
-  border-top: 1px solid var(--border);
+  border-top: 1.5px solid var(--border);
   padding: 1.2rem 2.5rem;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-family: var(--mono);
-  font-size: 0.55rem;
+  font-size: 0.6rem;
   color: var(--text-dim);
   background: var(--bg-header);
   backdrop-filter: blur(16px) saturate(1.6);
   -webkit-backdrop-filter: blur(16px) saturate(1.6);
   margin-top: auto;
   transition: all 0.4s;
+  min-height: 60px;
+}
+
+.footer-left {
+  flex: 0 0 auto;
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+}
+
+.footer-center {
+  flex: 1;
+  text-align: center;
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+}
+
+.footer-center strong {
+  color: var(--orange);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.footer-right {
+  flex: 0 0 auto;
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .game-footer {
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem 1.2rem;
+    min-height: auto;
+    text-align: center;
+  }
+  .footer-center {
+    font-size: 0.7rem;
+  }
+  .footer-left,
+  .footer-right,
+  .footer-center {
+    flex: none;
+    width: 100%;
+  }
 }
 
 /* ================================================================
