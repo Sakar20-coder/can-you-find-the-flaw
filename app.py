@@ -10,12 +10,14 @@ from routes import stage1_bp, stage2_bp, stage3_bp, stage4_bp, prize_bp
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this-in-production'
 
+# Register blueprints
 app.register_blueprint(stage1_bp, url_prefix='/api')
 app.register_blueprint(stage2_bp, url_prefix='/api')
 app.register_blueprint(stage3_bp, url_prefix='/api')
 app.register_blueprint(stage4_bp, url_prefix='/api')
 app.register_blueprint(prize_bp, url_prefix='/api')
 
+# ========== MAIN ROUTES ==========
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -109,8 +111,13 @@ def session_status():
     if not player:
         return jsonify({'error': 'Not found'}), 404
     elapsed = 0
-    if player.get('session_start'):
-        start = datetime.fromisoformat(player['session_start'])
+    start_raw = player.get('session_start')
+    if start_raw:
+        # Support both string (from SQLite) and datetime (from PostgreSQL)
+        if isinstance(start_raw, str):
+            start = datetime.fromisoformat(start_raw)
+        else:
+            start = start_raw
         if player['status'] in ('ACTIVE',):
             elapsed = int((datetime.now() - start).total_seconds())
         else:
@@ -139,6 +146,27 @@ def admin_dashboard():
     completed = sum(1 for p in players if p['status'] == 'COMPLETED')
     quit_count = sum(1 for p in players if p['status'] == 'QUIT')
     return render_template('admin.html', players=players, total=total, active=active, completed=completed, quit_count=quit_count)
+
+# ========== ADMIN CLEAR ENDPOINT ==========
+@app.route('/admin/clear', methods=['POST'])
+def clear_all():
+    token = request.headers.get('X-Admin-Token')
+    if token != 'your-super-secret-admin-token':   # CHANGE THIS TO A RANDOM STRING
+        return jsonify({'error': 'Unauthorized'}), 401
+    from database import SessionLocal, Leaderboard, Winner, GlobalCounter
+    db = SessionLocal()
+    try:
+        db.query(Leaderboard).delete()
+        db.query(Winner).delete()
+        counter = db.query(GlobalCounter).first()
+        if counter:
+            counter.total = 0
+        else:
+            db.add(GlobalCounter(id=1, total=0))
+        db.commit()
+        return jsonify({'status': 'cleared'})
+    finally:
+        db.close()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

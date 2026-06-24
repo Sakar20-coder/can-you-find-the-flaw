@@ -1,148 +1,171 @@
-import sqlite3
 import os
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 import json
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'instance', 'ctf.db')
+DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///instance/ctf.db')  # Vercel will set this
+
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+class Winner(Base):
+    __tablename__ = "winners"
+    id = Column(Integer, primary_key=True)
+    session_id = Column(String, unique=True)
+    claimed_at = Column(DateTime, default=datetime.utcnow)
+
+class GlobalCounter(Base):
+    __tablename__ = "global_counter"
+    id = Column(Integer, primary_key=True)
+    total = Column(Integer, default=0)
+
+class Leaderboard(Base):
+    __tablename__ = "leaderboard"
+    id = Column(Integer, primary_key=True)
+    callsign = Column(String, unique=True)
+    solved_stages = Column(Text, default='[]')
+    solved_count = Column(Integer, default=0)
+    elapsed_seconds = Column(Integer, default=0)
+    session_start = Column(DateTime, nullable=True)
+    session_end = Column(DateTime, nullable=True)
+    status = Column(String, default='ACTIVE')
+    score = Column(Integer, default=0)
+    claimed_at = Column(DateTime, nullable=True)
+    completion_time = Column(Integer, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+Base.metadata.create_all(bind=engine)
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def init_db():
-    with get_db() as conn:
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS winners (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id TEXT UNIQUE,
-                claimed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS global_counter (
-                id INTEGER PRIMARY KEY CHECK (id=1),
-                total INTEGER DEFAULT 0
-            )
-        ''')
-        conn.execute('INSERT OR IGNORE INTO global_counter (id, total) VALUES (1, 0)')
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS leaderboard (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                callsign TEXT UNIQUE NOT NULL,
-                solved_stages TEXT DEFAULT '[]',
-                solved_count INTEGER DEFAULT 0,
-                elapsed_seconds INTEGER DEFAULT 0,
-                session_start TIMESTAMP,
-                session_end TIMESTAMP,
-                status TEXT DEFAULT 'ACTIVE',
-                score INTEGER DEFAULT 0,
-                claimed_at TIMESTAMP,
-                completion_time INTEGER,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        conn.commit()
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 def increment_winner_count(session_id):
-    with get_db() as conn:
-        existing = conn.execute('SELECT 1 FROM winners WHERE session_id = ?', (session_id,)).fetchone()
+    db = SessionLocal()
+    try:
+        existing = db.query(Winner).filter(Winner.session_id == session_id).first()
         if existing:
             return get_total_winners()
-        conn.execute('INSERT INTO winners (session_id) VALUES (?)', (session_id,))
-        conn.execute('UPDATE global_counter SET total = total + 1 WHERE id = 1')
-        conn.commit()
-        return get_total_winners()
+        db.add(Winner(session_id=session_id))
+        counter = db.query(GlobalCounter).first()
+        if not counter:
+            counter = GlobalCounter(id=1, total=0)
+            db.add(counter)
+        counter.total += 1
+        db.commit()
+        return counter.total
+    finally:
+        db.close()
 
 def get_total_winners():
-    with get_db() as conn:
-        row = conn.execute('SELECT total FROM global_counter WHERE id = 1').fetchone()
-        return row['total'] if row else 0
+    db = SessionLocal()
+    try:
+        counter = db.query(GlobalCounter).first()
+        return counter.total if counter else 0
+    finally:
+        db.close()
 
 def create_or_update_session(callsign, start=True):
-    with get_db() as conn:
+    db = SessionLocal()
+    try:
+        now = datetime.utcnow()
         if start:
-            now = datetime.now().isoformat()
-            existing = conn.execute('SELECT callsign FROM leaderboard WHERE callsign = ?', (callsign,)).fetchone()
-            if existing:
-                conn.execute('''
-                    UPDATE leaderboard
-                    SET session_start = ?, status = 'ACTIVE'
-                    WHERE callsign = ?
-                ''', (now, callsign))
+            player = db.query(Leaderboard).filter(Leaderboard.callsign == callsign).first()
+            if player:
+                player.session_start = now
+                player.status = 'ACTIVE'
             else:
-                conn.execute('''
-                    INSERT INTO leaderboard (callsign, session_start, status, solved_stages, solved_count, score, elapsed_seconds)
-                    VALUES (?, ?, 'ACTIVE', '[]', 0, 0, 0)
-                ''', (callsign, now))
-        conn.commit()
+                db.add(Leaderboard(
+                    callsign=callsign,
+                    session_start=now,
+                    status='ACTIVE',
+                    solved_stages='[]',
+                    solved_count=0,
+                    score=0,
+                    elapsed_seconds=0
+                ))
+            db.commit()
+    finally:
+        db.close()
 
 def quit_session(callsign):
-    with get_db() as conn:
-        now = datetime.now().isoformat()
-        row = conn.execute('SELECT session_start FROM leaderboard WHERE callsign = ?', (callsign,)).fetchone()
-        if row and row['session_start']:
-            start = datetime.fromisoformat(row['session_start'])
-            duration = int((datetime.now() - start).total_seconds())
-            conn.execute('''
-                UPDATE leaderboard
-                SET session_end = ?, status = 'QUIT', completion_time = ?
-                WHERE callsign = ?
-            ''', (now, duration, callsign))
-        else:
-            conn.execute('''
-                UPDATE leaderboard
-                SET session_end = ?, status = 'QUIT'
-                WHERE callsign = ?
-            ''', (now, callsign))
-        conn.commit()
+    db = SessionLocal()
+    try:
+        now = datetime.utcnow()
+        player = db.query(Leaderboard).filter(Leaderboard.callsign == callsign).first()
+        if player:
+            if player.session_start:
+                duration = int((now - player.session_start).total_seconds())
+                player.completion_time = duration
+            player.session_end = now
+            player.status = 'QUIT'
+            db.commit()
+    finally:
+        db.close()
 
 def get_player_by_callsign(callsign):
-    with get_db() as conn:
-        row = conn.execute('SELECT * FROM leaderboard WHERE callsign = ?', (callsign,)).fetchone()
-        return dict(row) if row else None
+    db = SessionLocal()
+    try:
+        player = db.query(Leaderboard).filter(Leaderboard.callsign == callsign).first()
+        return {c.name: getattr(player, c.name) for c in player.__table__.columns} if player else None
+    finally:
+        db.close()
 
 def claim_prize_db(callsign):
-    with get_db() as conn:
-        now = datetime.now().isoformat()
-        row = conn.execute('SELECT session_start FROM leaderboard WHERE callsign = ?', (callsign,)).fetchone()
-        if row and row['session_start']:
-            start = datetime.fromisoformat(row['session_start'])
-            completion = int((datetime.now() - start).total_seconds())
-            conn.execute('''
-                UPDATE leaderboard
-                SET status = 'COMPLETED', claimed_at = ?, completion_time = ?
-                WHERE callsign = ?
-            ''', (now, completion, callsign))
-        else:
-            conn.execute('''
-                UPDATE leaderboard
-                SET status = 'COMPLETED', claimed_at = ?
-                WHERE callsign = ?
-            ''', (now, callsign))
-        conn.commit()
+    db = SessionLocal()
+    try:
+        now = datetime.utcnow()
+        player = db.query(Leaderboard).filter(Leaderboard.callsign == callsign).first()
+        if player:
+            player.status = 'COMPLETED'
+            player.claimed_at = now
+            if player.session_start:
+                player.completion_time = int((now - player.session_start).total_seconds())
+            db.commit()
+    finally:
+        db.close()
 
 def update_player_progress_db(callsign, solved_stages, elapsed_seconds):
-    with get_db() as conn:
-        solved_list = solved_stages if isinstance(solved_stages, list) else []
-        solved_count = len(solved_list)
-        score = solved_count * 500  # base points per stage
-        conn.execute('''
-            UPDATE leaderboard
-            SET solved_stages = ?, solved_count = ?, score = ?, elapsed_seconds = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE callsign = ?
-        ''', (json.dumps(solved_list), solved_count, score, elapsed_seconds, callsign))
-        conn.commit()
+    db = SessionLocal()
+    try:
+        player = db.query(Leaderboard).filter(Leaderboard.callsign == callsign).first()
+        if player:
+            player.solved_stages = json.dumps(solved_stages)
+            player.solved_count = len(solved_stages)
+            player.score = len(solved_stages) * 500
+            player.elapsed_seconds = elapsed_seconds
+            player.updated_at = datetime.utcnow()
+            db.commit()
+    finally:
+        db.close()
 
 def get_leaderboard():
-    with get_db() as conn:
-        rows = conn.execute('''
-            SELECT callsign, solved_count, score, status,
-                   session_start, session_end, completion_time,
-                   claimed_at, elapsed_seconds
-            FROM leaderboard
-            ORDER BY score DESC, solved_count DESC, completion_time ASC NULLS LAST
-        ''').fetchall()
-        return [dict(row) for row in rows]
-
-init_db()
+    db = SessionLocal()
+    try:
+        players = db.query(Leaderboard).order_by(
+            Leaderboard.score.desc(),
+            Leaderboard.solved_count.desc(),
+            Leaderboard.completion_time.asc().nullslast()
+        ).all()
+        result = []
+        for p in players:
+            result.append({
+                'callsign': p.callsign,
+                'solved_count': p.solved_count,
+                'score': p.score,
+                'status': p.status,
+                'elapsed_seconds': p.elapsed_seconds,
+                'completion_time': p.completion_time,
+                'session_start': p.session_start,
+                'session_end': p.session_end,
+                'claimed_at': p.claimed_at
+            })
+        return result
+    finally:
+        db.close()
