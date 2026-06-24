@@ -7,6 +7,7 @@ let timerInterval = null;
 let callsign = '';
 let allPlayers = [];
 let achievementShown = {};
+let celebrationInProgress = false;
 
 // ----- Toast -----
 function showToast(message, type = 'info') {
@@ -47,7 +48,255 @@ function speakWelcome(name) {
   setTimeout(() => window.speechSynthesis.speak(utterance), 50);
 }
 
-// ----- Timer (server‑side) -----
+// ================================================================
+// HACKER-THEMED PROFESSIONAL SOUND SYSTEM
+// ================================================================
+
+// Deep, dark synth sound for flag found (hacker vibe)
+function playFlagSound() {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // Dark, descending bass synth
+    const notes = [200, 180, 160, 140];
+    notes.forEach((freq, i) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'sawtooth';
+      gain.gain.setValueAtTime(0.12, audioCtx.currentTime + i * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.08 + 0.2);
+      osc.start(audioCtx.currentTime + i * 0.08);
+      osc.stop(audioCtx.currentTime + i * 0.08 + 0.2);
+    });
+    
+    // Add a subtle high-pitched glitch
+    setTimeout(() => {
+      const osc2 = audioCtx.createOscillator();
+      const gain2 = audioCtx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(audioCtx.destination);
+      osc2.frequency.value = 800;
+      osc2.type = 'square';
+      gain2.gain.setValueAtTime(0.06, audioCtx.currentTime);
+      gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+      osc2.start(audioCtx.currentTime);
+      osc2.stop(audioCtx.currentTime + 0.1);
+    }, 300);
+  } catch (e) {}
+}
+
+// Epic hacker victory sound - dark & professional
+function playVictorySound() {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // Dark ascending bassline
+    const notes = [110, 130, 155, 185, 220, 260];
+    notes.forEach((freq, i) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'sawtooth';
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime + i * 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.12 + 0.3);
+      osc.start(audioCtx.currentTime + i * 0.12);
+      osc.stop(audioCtx.currentTime + i * 0.12 + 0.3);
+    });
+    
+    // Drum hit
+    setTimeout(() => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.frequency.value = 80;
+      osc.type = 'square';
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.3);
+    }, 600);
+    
+    // Sub-bass rumble
+    setTimeout(() => {
+      const osc2 = audioCtx.createOscillator();
+      const gain2 = audioCtx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(audioCtx.destination);
+      osc2.frequency.value = 60;
+      osc2.type = 'sine';
+      gain2.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+      osc2.start(audioCtx.currentTime);
+      osc2.stop(audioCtx.currentTime + 0.5);
+    }, 700);
+  } catch (e) {}
+}
+
+// Professional speech announcement (same as welcome)
+function speakAchievement(message) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(message);
+  utterance.rate = 0.85;
+  utterance.pitch = 0.9;
+  utterance.volume = 1;
+  utterance.lang = 'en-US';
+  setTimeout(() => window.speechSynthesis.speak(utterance), 300);
+}
+
+// ================================================================
+// PROFESSIONAL ACHIEVEMENT SYSTEM
+// ================================================================
+
+function showStageAchievement(stageNum) {
+  const emojis = ['🔓', '🛡️', '💎', '🚀'];
+  const titles = ['STAGE 1 COMPLETE!', 'STAGE 2 COMPLETE!', 'STAGE 3 COMPLETE!', 'STAGE 4 COMPLETE!'];
+  const subs = [
+    'You bypassed the rate limit and reset the password!',
+    'You exploited the JSONP leak!',
+    'You poisoned the cache and retrieved the flag!',
+    'You exploited the SQL injection!'
+  ];
+  
+  playFlagSound();
+  showToast(`${emojis[stageNum - 1]} ${titles[stageNum - 1]} ${subs[stageNum - 1]}`, 'success');
+  createFlagAnimation(stageNum);
+}
+
+function createFlagAnimation(stageNum) {
+  const emojis = ['🔓', '🛡️', '💎', '🚀'];
+  const titles = ['STAGE 1 COMPLETE!', 'STAGE 2 COMPLETE!', 'STAGE 3 COMPLETE!', 'STAGE 4 COMPLETE!'];
+  const subs = [
+    'You bypassed the rate limit and reset the password!',
+    'You exploited the JSONP leak!',
+    'You poisoned the cache and retrieved the flag!',
+    'You exploited the SQL injection!'
+  ];
+  
+  const overlay = document.createElement('div');
+  overlay.className = 'flag-animation-overlay';
+  overlay.innerHTML = `
+    <div class="flag-animation-content">
+      <div class="flag-emoji-big">${emojis[stageNum - 1]}</div>
+      <div class="flag-title">${titles[stageNum - 1]}</div>
+      <div class="flag-sub">${subs[stageNum - 1]}</div>
+      <div class="flag-progress">
+        <span class="flag-stages-solved">${solvedStages.length}/4</span>
+        <span class="flag-stages-label">STAGES SOLVED</span>
+      </div>
+      <button class="flag-dismiss-btn">CONTINUE</button>
+    </div>
+  `;
+  
+  const container = overlay.querySelector('.flag-animation-content');
+  const colors = ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff', '#5f27cd', '#1dd1a1'];
+  for (let i = 0; i < 60; i++) {
+    const confetti = document.createElement('div');
+    confetti.className = 'flag-confetti';
+    confetti.style.left = Math.random() * 100 + '%';
+    confetti.style.top = '-20px';
+    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+    confetti.style.width = (Math.random() * 8 + 4) + 'px';
+    confetti.style.height = (Math.random() * 8 + 4) + 'px';
+    confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+    confetti.style.animationDelay = (Math.random() * 2) + 's';
+    container.appendChild(confetti);
+  }
+  
+  document.body.appendChild(overlay);
+  
+  const dismissBtn = overlay.querySelector('.flag-dismiss-btn');
+  const dismiss = () => {
+    overlay.classList.add('fade-out');
+    setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 500);
+  };
+  dismissBtn.addEventListener('click', dismiss);
+  setTimeout(dismiss, 4000);
+}
+
+// ================================================================
+// PROFESSIONAL CELEBRATION – ALL 4 STAGES COMPLETE
+// ================================================================
+
+function showFullAchievement() {
+  if (celebrationInProgress) return;
+  celebrationInProgress = true;
+  
+  playVictorySound();
+  
+  const overlay = document.getElementById('achievementOverlay');
+  const title = document.getElementById('achievementTitle');
+  const sub = document.getElementById('achievementSub');
+  const emoji = document.getElementById('achievementEmoji');
+  const stagesSolved = document.getElementById('achStagesSolved');
+  const rank = document.getElementById('achPlayerRank');
+  const total = document.getElementById('achTotalSolvers');
+
+  const sorted = sortPlayers(allPlayers);
+  const playerRank = sorted.findIndex(p => p.callsign === callsign) + 1;
+  const totalSolvers = sorted.length;
+
+  const celebrationEmojis = ['🎉', '🎊', '👏', '🏆', '⭐', '🔥', '💪', '🚀'];
+  const randomEmoji = celebrationEmojis[Math.floor(Math.random() * celebrationEmojis.length)];
+
+  emoji.textContent = randomEmoji;
+  title.textContent = '🏆 YOU DID IT!';
+  sub.textContent = `You're the #${playerRank} person to solve all 4 challenges!`;
+  stagesSolved.textContent = '4';
+  rank.textContent = `#${playerRank}`;
+  total.textContent = totalSolvers;
+
+  const container = document.getElementById('confettiContainer');
+  container.innerHTML = '';
+  const colors = ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff', '#5f27cd', '#1dd1a1', '#f368e0', '#00d2d3', '#ff6348'];
+  for (let i = 0; i < 120; i++) {
+    const confetti = document.createElement('div');
+    confetti.className = 'confetti';
+    confetti.style.left = Math.random() * 100 + '%';
+    confetti.style.top = '-20px';
+    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+    confetti.style.width = (Math.random() * 10 + 4) + 'px';
+    confetti.style.height = (Math.random() * 10 + 4) + 'px';
+    confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
+    confetti.style.animationDelay = (Math.random() * 2) + 's';
+    container.appendChild(confetti);
+  }
+
+  overlay.classList.add('show');
+
+  // Speech synthesis – congratulations with rank
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(
+      `Congratulations, ${callsign}! You are the number ${playerRank} person to solve all 4 challenges. You are a legend!`
+    );
+    utterance.rate = 0.9;
+    utterance.pitch = 1.1;
+    utterance.volume = 1;
+    setTimeout(() => window.speechSynthesis.speak(utterance), 400);
+  }
+  
+  celebrationInProgress = false;
+}
+
+document.getElementById('achievementBtn')?.addEventListener('click', function () {
+  document.getElementById('achievementOverlay').classList.remove('show');
+  // Smooth scroll to prize section
+  document.getElementById('prize').scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+
+// ================================================================
+// TIMER (server‑side)
+// ================================================================
+
 function updateServerTimer() {
   fetch('/api/session_status', { credentials: 'include' })
     .then(res => res.json())
@@ -83,13 +332,20 @@ async function fetchCounter() {
   }
 }
 
+// ================================================================
+// FIXED checkSolved – stage 2 unlocks immediately
+// ================================================================
 async function checkSolved() {
   try {
     const res = await fetch('/api/check_solved', { credentials: 'include' });
     const data = await res.json();
     const prevSolved = [...solvedStages];
+    
+    // === CRITICAL: Update solvedStages FIRST ===
     solvedStages = data.solved || [];
     callsign = data.callsign || '';
+    
+    // === THEN render stages with the updated solvedStages ===
     renderStages();
     updateProgress();
     updatePrizeLock();
@@ -102,92 +358,35 @@ async function checkSolved() {
       });
     }
 
+    // Trigger full achievement IMMEDIATELY when all 4 are solved
     if (solvedStages.length === 4 && prevSolved.length < 4) {
-      setTimeout(() => showFullAchievement(), 800);
+      showFullAchievement();
+      setTimeout(() => {
+        const prize = document.getElementById('prize');
+        if (prize) prize.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 1500);
     }
   } catch (err) {
     console.error('Check solved failed', err);
   }
 }
 
-function showStageAchievement(stageNum) {
-  const emojis = ['🔓', '🛡️', '💎', '🚀'];
-  const titles = ['STAGE 1 COMPLETE!', 'STAGE 2 COMPLETE!', 'STAGE 3 COMPLETE!', 'STAGE 4 COMPLETE!'];
-  const subs = [
-    'You bypassed the rate limit and reset the password!',
-    'You exploited the JSONP leak!',
-    'You poisoned the cache and retrieved the flag!',
-    'You exploited the SQL injection!'
-  ];
-  showToast(`${emojis[stageNum - 1]} ${titles[stageNum - 1]} ${subs[stageNum - 1]}`, 'success');
-}
-
-function showFullAchievement() {
-  const overlay = document.getElementById('achievementOverlay');
-  const title = document.getElementById('achievementTitle');
-  const sub = document.getElementById('achievementSub');
-  const emoji = document.getElementById('achievementEmoji');
-  const stagesSolved = document.getElementById('achStagesSolved');
-  const rank = document.getElementById('achPlayerRank');
-  const total = document.getElementById('achTotalSolvers');
-
-  const sorted = sortPlayers(allPlayers);
-  const playerRank = sorted.findIndex(p => p.callsign === callsign) + 1;
-  const totalSolvers = sorted.length;
-
-  const celebrationEmojis = ['🎉', '🎊', '👏', '🏆', '⭐', '🔥', '💪', '🚀'];
-  const randomEmoji = celebrationEmojis[Math.floor(Math.random() * celebrationEmojis.length)];
-
-  emoji.textContent = randomEmoji;
-  title.textContent = '🏆 YOU DID IT!';
-  sub.textContent = `You're the #${playerRank} person to solve all 4 challenges!`;
-  stagesSolved.textContent = '4';
-  rank.textContent = `#${playerRank}`;
-  total.textContent = totalSolvers;
-
-  const container = document.getElementById('confettiContainer');
-  container.innerHTML = '';
-  const colors = ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff', '#5f27cd', '#1dd1a1'];
-  for (let i = 0; i < 40; i++) {
-    const confetti = document.createElement('div');
-    confetti.className = 'confetti';
-    confetti.style.left = Math.random() * 100 + '%';
-    confetti.style.top = '-10px';
-    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
-    confetti.style.width = (Math.random() * 8 + 4) + 'px';
-    confetti.style.height = (Math.random() * 8 + 4) + 'px';
-    confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
-    confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
-    confetti.style.animationDelay = (Math.random() * 2) + 's';
-    container.appendChild(confetti);
-  }
-
-  overlay.classList.add('show');
-
-  if (window.speechSynthesis) {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(
-      `Congratulations ${callsign}! You solved all 4 challenges! You are number ${playerRank} to complete the arena!`
-    );
-    utterance.rate = 0.9;
-    utterance.pitch = 1.1;
-    setTimeout(() => window.speechSynthesis.speak(utterance), 300);
-  }
-}
-
-document.getElementById('achievementBtn')?.addEventListener('click', function () {
-  document.getElementById('achievementOverlay').classList.remove('show');
-  document.getElementById('prize').scrollIntoView({ behavior: 'smooth' });
-});
+// ================================================================
+// STAGES
+// ================================================================
 
 function renderStages() {
   const container = document.getElementById('stages');
   if (!container) return;
   container.innerHTML = '';
+  
+  // Use the latest solvedStages
+  const currentSolved = solvedStages || [];
+  
   for (let i = 1; i <= 4; i++) {
     let unlocked = false;
     if (i === 1) unlocked = true;
-    else if (solvedStages.includes(i)) unlocked = true;
+    else if (currentSolved.includes(i)) unlocked = true;
     container.appendChild(createStageCard(i, unlocked));
   }
 }
@@ -264,9 +463,6 @@ function createStageCard(stage, unlocked) {
   return div;
 }
 
-// ================================================================
-// FIXED sendRequest – unlocks next stage immediately
-// ================================================================
 window.sendRequest = async function (stage) {
   const method = document.getElementById(`method${stage}`).value;
   let url = document.getElementById(`url${stage}`).value;
@@ -294,15 +490,30 @@ window.sendRequest = async function (stage) {
     const data = await res.json();
     const respEl = document.getElementById(`response${stage}`);
     respEl.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+    
     if (data.solved === true) {
       showToast(`🎉 Flag found: ${data.flag}`, 'success');
 
+      // === FIX: Add the solved stage to local array ===
       if (!solvedStages.includes(stage)) {
         solvedStages.push(stage);
       }
+      
+      // === FIX: Immediately render stages to unlock the next one ===
       renderStages();
       updateProgress();
       updatePrizeLock();
+      
+      // === FIX: Check if all 4 are solved locally ===
+      if (solvedStages.length === 4) {
+        showFullAchievement();
+        setTimeout(() => {
+          const prize = document.getElementById('prize');
+          if (prize) prize.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 1500);
+      }
+      
+      // Update server in background (don't wait)
       updatePlayerProgress();
       fetchLeaderboard();
 
@@ -313,7 +524,6 @@ window.sendRequest = async function (stage) {
           if (csData.callsign) callsign = csData.callsign;
         } catch (e) {}
       }
-      setTimeout(checkSolved, 300);
     }
     if (data.total_winners) {
       document.getElementById('counter').innerText = `🔍 ${data.total_winners} people have found the flaw so far`;
@@ -322,7 +532,6 @@ window.sendRequest = async function (stage) {
     document.getElementById(`response${stage}`).innerHTML = `<span class="err">Error: ${err.message}</span>`;
   }
 };
-
 window.getHint = async function (stage) {
   try {
     const res = await fetch(`/api/hint/${stage}`, { credentials: 'include' });
@@ -629,7 +838,6 @@ function updateProgress() {
     
     node.classList.remove('active', 'done');
     
-    // === FIX: Use i+1 because backend stores 1,2,3,4 ===
     const stageNum = i + 1;
     
     if (solved.includes(stageNum)) {
@@ -785,7 +993,6 @@ function updatePrizeLock() {
 
   dots.forEach((dot, i) => {
     dot.classList.remove('done', 'active');
-    // === FIX: Use i+1 because backend stores 1,2,3,4 ===
     const stageNum = i + 1;
     if (solved.includes(stageNum)) {
       dot.classList.add('done');
