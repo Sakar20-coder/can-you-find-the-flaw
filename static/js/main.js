@@ -386,7 +386,11 @@ function renderStages() {
   for (let i = 1; i <= 4; i++) {
     let unlocked = false;
     if (i === 1) unlocked = true;
+<<<<<<< HEAD
     else if (currentSolved.includes(i)) unlocked = true;
+=======
+    else if (solvedStages.includes(i - 1)) unlocked = true;
+>>>>>>> 8b7a558c6918dfb42758d07007655cfa05af9abf
     container.appendChild(createStageCard(i, unlocked));
   }
 }
