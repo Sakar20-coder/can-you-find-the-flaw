@@ -5,7 +5,7 @@ from database import (
     get_total_winners, get_leaderboard, update_player_progress_db,
     get_player_by_callsign, create_or_update_session, quit_session, claim_prize_db
 )
-from routes import stage1_bp, stage2_bp, stage3_bp, stage4_bp, prize_bp, hints_bp   # import hints_bp
+from routes import stage1_bp, stage2_bp, stage3_bp, stage4_bp, prize_bp, hints_bp, hints_bp   # import hints_bp
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this-in-production'

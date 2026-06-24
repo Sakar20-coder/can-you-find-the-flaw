@@ -1,4 +1,5 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify
+from collections import defaultdict
 
 hints_bp = Blueprint('hints', __name__)
 
@@ -28,3 +29,18 @@ HINTS = {
         "Once you find the table and its column, extract the flag with a UNION SELECT and submit it."
     ]
 }
+
+# In-memory counter per (IP, stage)
+hint_counter = defaultdict(lambda: defaultdict(int))
+
+@hints_bp.route('/hint/<int:stage>', methods=['GET'])
+def get_hint(stage):
+    ip = request.remote_addr
+    count = hint_counter[ip][stage]
+    hint_counter[ip][stage] = count + 1
+
+    if stage not in HINTS:
+        return jsonify({'error': 'Invalid stage'}), 400
+
+    idx = min(count, len(HINTS[stage]) - 1)
+    return jsonify({'hint': HINTS[stage][idx]})
