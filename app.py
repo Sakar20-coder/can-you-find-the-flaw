@@ -5,7 +5,7 @@ from database import (
     get_total_winners, get_leaderboard, update_player_progress_db,
     get_player_by_callsign, create_or_update_session, quit_session, claim_prize_db
 )
-from routes import stage1_bp, stage2_bp, stage3_bp, stage4_bp, prize_bp
+from routes import stage1_bp, stage2_bp, stage3_bp, stage4_bp, prize_bp, hints_bp   # import hints_bp
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this-in-production'
@@ -16,6 +16,7 @@ app.register_blueprint(stage2_bp, url_prefix='/api')
 app.register_blueprint(stage3_bp, url_prefix='/api')
 app.register_blueprint(stage4_bp, url_prefix='/api')
 app.register_blueprint(prize_bp, url_prefix='/api')
+app.register_blueprint(hints_bp, url_prefix='/api')   # <-- register hints blueprint
 
 # ========== MAIN ROUTES ==========
 @app.route('/')
@@ -41,15 +42,7 @@ def api_check_solved():
         'callsign': session.get('callsign', '')
     })
 
-@app.route('/api/hint/<int:stage>')
-def api_hint(stage):
-    hints = {
-        1: "Try fetching /api/internal/notes with X-Admin: true first. Then cycle X-Forwarded-For IPs to bypass the rate limit.",
-        2: "Use ?callback=anything to leak the flag from the JSONP response.",
-        3: "Send a request to /profile with X-Original-URL: /admin/flag to poison the cache. Then visit /profile again (without the header) to retrieve the flag from cache.",
-        4: "First, find all tables using UNION SELECT NULL, name, NULL FROM sqlite_master. Then discover columns and extract the flag."
-    }
-    return jsonify({'hint': hints.get(stage, 'No hint available')})
+# ⚠️ REMOVED old /api/hint route – it's now handled by hints_bp
 
 @app.route('/api/claim', methods=['POST'])
 def api_claim():
@@ -113,7 +106,6 @@ def session_status():
     elapsed = 0
     start_raw = player.get('session_start')
     if start_raw:
-        # Support both string (from SQLite) and datetime (from PostgreSQL)
         if isinstance(start_raw, str):
             start = datetime.fromisoformat(start_raw)
         else:
